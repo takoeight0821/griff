@@ -4,16 +4,16 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: d1461e1ee40c4d24ccd4e87b2dca6805b719e9205a693cffc9044213251fe7da
+-- hash: 4050437dd6b74affa0caa04804dedf85329a69dc7ff77066b6c75bb7c9b5580a
 
 name:           griff
 version:        0.1.0.0
-description:    Please see the README on GitHub at <https://github.com/githubuser/griff#readme>
-homepage:       https://github.com/githubuser/griff#readme
-bug-reports:    https://github.com/githubuser/griff/issues
-author:         Author name here
-maintainer:     example@example.com
-copyright:      2019 Author name here
+description:    Please see the README on GitHub at <https://github.com/takoeight0821/griff#readme>
+homepage:       https://github.com/takoeight0821/griff#readme
+bug-reports:    https://github.com/takoeight0821/griff/issues
+author:         Yuya Kono
+maintainer:     takohati0821@gmail.com
+copyright:      2019 Yuya Kono
 license:        BSD3
 license-file:   LICENSE
 build-type:     Simple
@@ -23,7 +23,7 @@ extra-source-files:
 
 source-repository head
   type: git
-  location: https://github.com/githubuser/griff
+  location: https://github.com/takoeight0821/griff
 
 library
   exposed-modules:
