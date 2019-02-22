@@ -24,6 +24,11 @@ dependencies:
 
 library:
   source-dirs: src
+  dependencies:
+  - capability
+  - containers
+  - extra
+  - mtl
 
 executables:
   griff-exe:

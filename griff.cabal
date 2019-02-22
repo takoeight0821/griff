@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 4050437dd6b74affa0caa04804dedf85329a69dc7ff77066b6c75bb7c9b5580a
+-- hash: 9a4491f1be116a304c21c8004881f3a6a85b6d13cf95b118b9ce996e2ec87e67
 
 name:           griff
 version:        0.1.0.0
@@ -28,12 +28,17 @@ source-repository head
 library
   exposed-modules:
       Lib
+      Vm
   other-modules:
       Paths_griff
   hs-source-dirs:
       src
   build-depends:
       base >=4.7 && <5
+    , capability
+    , containers
+    , extra
+    , mtl
   default-language: Haskell2010
 
 executable griff-exe
