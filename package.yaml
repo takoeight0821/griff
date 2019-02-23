@@ -28,6 +28,7 @@ library:
   - capability
   - containers
   - extra
+  - fixed-vector
   - mtl
 
 executables:

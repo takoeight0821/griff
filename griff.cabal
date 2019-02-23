@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 9a4491f1be116a304c21c8004881f3a6a85b6d13cf95b118b9ce996e2ec87e67
+-- hash: 3f7d8f3bb324463db704b705d3e5a7f73eb1605eb3878841a5a33a1d07baf34f
 
 name:           griff
 version:        0.1.0.0
@@ -38,6 +38,7 @@ library
     , capability
     , containers
     , extra
+    , fixed-vector
     , mtl
   default-language: Haskell2010
 

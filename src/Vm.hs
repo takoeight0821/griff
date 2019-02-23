@@ -23,9 +23,10 @@ import           Control.Monad.Reader           ( ReaderT(..)
 import           Control.Monad.Trans            ( MonadTrans )
 import           Data.Coerce
 import           Data.IORef
+import qualified Data.Vector.Fixed             as V
 import           Data.Map                       ( Map )
-import           GHC.Generics                   ( Generic )
 import qualified Data.Map                      as Map
+import           GHC.Generics                   ( Generic )
 
 data Ctx = Ctx {
     _code :: IORef Code,
@@ -33,18 +34,15 @@ data Ctx = Ctx {
     _stack :: IORef Stack
 } deriving (Eq, Generic)
 
+type CtxField field m
+    = ReaderIORef (Rename field (Field field () (MonadReader (ReaderT Ctx m))))
+
 newtype MachineT (m :: * -> *) a = MachineT (Ctx -> m a)
     deriving (Functor, Applicative, Monad, MonadFail) via ReaderT Ctx m
     deriving MonadTrans via ReaderT Ctx
-    deriving (HasState "code" Code) via
-        ReaderIORef (Rename "_code" (Field "_code" ()
-        (MonadReader (ReaderT Ctx m))))
-    deriving (HasState "env" Env) via
-        ReaderIORef (Rename "_env" (Field "_env" ()
-        (MonadReader (ReaderT Ctx m))))
-    deriving (HasState "stack" Stack) via
-        ReaderIORef (Rename "_stack" (Field "_stack" ()
-        (MonadReader (ReaderT Ctx m))))
+    deriving (HasState Code Code) via CtxField "_code" m
+    deriving (HasState Env Env) via CtxField "_env" m
+    deriving (HasState Stack Stack) via CtxField "_stack" m
 
 runMachineT :: MonadIO m => MachineT m a -> m a
 runMachineT (MachineT m) = do
@@ -54,12 +52,12 @@ runMachineT (MachineT m) = do
     m $ Ctx { _code = codeRef, _env = envRef, _stack = stackRef }
 
 dumpCtx
-    :: (HasState "code" Code m, HasState "env" Env m, HasState "stack" Stack m)
+    :: (HasState Code Code m, HasState Env Env m, HasState Stack Stack m)
     => m (Map String String)
 dumpCtx = do
-    code  <- get @"code"
-    env   <- get @"env"
-    stack <- get @"stack"
+    code  <- get @Code
+    env   <- get @Env
+    stack <- get @Stack
     return $ Map.fromList
         [("code", show code), ("env", show env), ("stack", show stack)]
 
@@ -83,73 +81,86 @@ newtype Env = Env [Value]
     deriving (Show, Eq, Ord, Generic, Semigroup)
 
 newtype Stack = Stack [Value]
-    deriving (Show, Eq, Ord, Generic)
+    deriving (Show, Eq, Ord, Generic, Semigroup)
 
 data Value = IntV Integer
            | BoolV Bool
            | ClosureV Code Env
     deriving (Show, Eq, Ord, Generic)
 
-push :: HasState "stack" Stack m => Value -> m ()
-push x = modify @"stack" $ \(Stack xs) -> Stack $ x : xs
+push :: HasState Stack Stack m => Value -> m ()
+push x = modify @Stack $ \(Stack xs) -> Stack $ x : xs
 
-pop :: (HasState "stack" Stack m, MonadFail m) => m Value
+pop :: (HasState Stack Stack m, MonadFail m) => m Value
 pop = do
-    Stack (x : xs) <- get @"stack"
-    put @"stack" $ Stack xs
+    Stack (x : xs) <- get @Stack
+    put @Stack $ Stack xs
     return x
 
-lookupEnv :: HasState "env" Env f => Int -> f Value
-lookupEnv i = (\(Env xs) -> xs !! i) <$> get @"env"
+viewEnv :: HasState Env Env f => Int -> f Value
+viewEnv i = (\(Env xs) -> xs !! i) <$> get @Env
 
+-- | 状態遷移関数
 transition
     :: ( MonadFail m
-       , HasState "code" Code m
-       , HasState "env" Env m
-       , HasState "stack" Stack m
+       , HasState Code Code m
+       , HasState Env Env m
+       , HasState Stack Stack m
        )
     => Instr
     -> m ()
 transition (Int     n) = push $ IntV n
 transition (Bool    b) = push $ BoolV b
-transition (Access  i) = push =<< lookupEnv i
-transition (Closure c) = push =<< ClosureV c <$> get @"env"
+transition (Access  i) = push =<< viewEnv i
+transition (Closure c) = push =<< ClosureV c <$> get @Env
 transition Apply       = do
     ClosureV c' env' <- pop -- 呼び出す関数
     v                <- pop -- 引数
 
-    push =<< ClosureV <$> get @"code" <*> get @"env" -- 戻り先をプッシュ
+    push =<< ClosureV <$> get @Code <*> get @Env -- 戻り先をプッシュ
 
-    put @"env" $ Env [v, ClosureV c' env'] <> env'
-    put @"code" c'
+    put @Env $ Env [v, ClosureV c' env'] <> env'
+    put @Code c'
 transition Return = do
     v              <- pop
     ClosureV c env <- pop
-    put @"code" c
-    put @"env" env
+    put @Code c
+    put @Env env
     push v
 transition Let = do
     v <- pop
-    modify @"env" (\(Env xs) -> Env $ v : xs)
-transition EndLet       = modify @"env" (\(Env (_ : xs)) -> Env xs)
+    modify @Env (\(Env xs) -> Env $ v : xs)
+transition EndLet       = modify @Env (\(Env (_ : xs)) -> Env xs)
 transition (Test c1 c2) = do
     BoolV v <- pop
-    modify @"code" ((if v then c1 else c2) <>)
-transition Add = do
-    IntV x <- pop
-    IntV y <- pop
-    push $ IntV $ x + y
-transition Eq = do
-    IntV x <- pop
-    IntV y <- pop
-    push $ BoolV $ x == y
+    modify @Code ((if v then c1 else c2) <>)
+transition Add = calculate $ \(IntV x, IntV y) -> [IntV $ x + y]
+transition Eq  = calculate $ \(IntV x, IntV y) -> [BoolV $ x == y]
 
-eval :: (MonadIO m, MonadFail m) => MachineT m ()
+-- | popしてpushするだけの単純な計算用ユーティリティ
+calculate
+    :: (V.Vector v Value, HasState Stack Stack m, MonadFail m)
+    => (v Value -> [Value])
+    -> m ()
+calculate f = do
+    vs <- V.replicateM pop
+    modify @Stack (Stack (f vs) <>)
+
+eval
+    :: ( MonadFail m
+       , HasState Code Code m
+       , HasState Env Env m
+       , HasState Stack Stack m
+       )
+    => m ()
 eval = whileM $ do
-    Code cs <- get @"code"
+    Code cs <- get @Code
     case cs of
-        [] -> return False
-        (c:cs) -> do
-            put @"code" $ Code cs
+        []       -> return False
+        (c : cs) -> do
+            put @Code $ Code cs
             transition c
             return True
+
+load :: HasState Code Code m => [Instr] -> m ()
+load = put @Code . Code
