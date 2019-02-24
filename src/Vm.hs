@@ -10,18 +10,29 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE Strict, StrictData #-}
-module Vm where
+module Vm
+    ( Ctx(..)
+    , MachineT(..)
+    , Code(..)
+    , Env(..)
+    , Stack(..)
+    , Instr(..)
+    , Value(..)
+    , runMachineT
+    , load
+    , eval
+    , dumpCtx
+    )
+where
 
 import           Capability.Reader
 import           Capability.State
 import           Control.Monad.Extra
 import           Control.Monad.Fail             ( MonadFail )
 import           Control.Monad.IO.Class         ( MonadIO(..) )
-import           Control.Monad.Reader           ( ReaderT(..)
-                                                , runReaderT
-                                                )
+import           Control.Monad.Reader           ( ReaderT(..) )
 import           Control.Monad.Trans            ( MonadTrans )
-import           Data.Coerce
+import           Data.Coerce                    ( coerce )
 import           Data.IORef
 import qualified Data.Vector.Fixed             as V
 import           Data.Map                       ( Map )
@@ -113,38 +124,48 @@ transition (Int     n) = push $ IntV n
 transition (Bool    b) = push $ BoolV b
 transition (Access  i) = push =<< viewEnv i
 transition (Closure c) = push =<< ClosureV c <$> get @Env
-transition Apply       = do
-    ClosureV c' env' <- pop -- 呼び出す関数
-    v                <- pop -- 引数
-
-    push =<< ClosureV <$> get @Code <*> get @Env -- 戻り先をプッシュ
-
-    put @Env $ Env [v, ClosureV c' env'] <> env'
-    put @Code c'
-transition Return = do
-    v              <- pop
-    ClosureV c env <- pop
-    put @Code c
-    put @Env env
-    push v
-transition Let = do
-    v <- pop
-    modify @Env (\(Env xs) -> Env $ v : xs)
-transition EndLet       = modify @Env (\(Env (_ : xs)) -> Env xs)
-transition (Test c1 c2) = do
-    BoolV v <- pop
-    modify @Code ((if v then c1 else c2) <>)
+transition Apply       = modifyCtx $ \code env (ClosureV code' env', v) ->
+    ( const code'
+    , const (Env [v, ClosureV code' env'] <> env')
+    , [ClosureV code env]
+    )
+transition Return =
+    modifyCtx $ \_ _ (v, ClosureV code env) -> (const code, const env, [v])
+transition Let          = modifyCtx $ \_ _ (V.Only v) -> (id, (Env [v] <>), [])
+transition EndLet       = modify @Env $ coerce $ tail @Value
+transition (Test c1 c2) = modifyCtx
+    $ \_ _ (V.Only (BoolV v)) -> (((if v then c1 else c2) <>), id, [])
 transition Add = calculate $ \(IntV x, IntV y) -> [IntV $ x + y]
 transition Eq  = calculate $ \(IntV x, IntV y) -> [BoolV $ x == y]
 
--- | popしてpushするだけの単純な計算用ユーティリティ
 calculate
-    :: (V.Vector v Value, HasState Stack Stack m, MonadFail m)
+    :: ( V.Vector v Value
+       , HasState Code Code m
+       , HasState Env Env m
+       , HasState Stack Stack m
+       , MonadFail m
+       )
     => (v Value -> [Value])
     -> m ()
-calculate f = do
-    vs <- V.replicateM pop
-    modify @Stack (Stack (f vs) <>)
+calculate f = modifyCtx (\_ _ vs -> (id, id, f vs))
+
+modifyCtx
+    :: ( V.Vector v Value
+       , HasState Code Code m
+       , HasState Env Env m
+       , HasState Stack Stack m
+       , MonadFail m
+       )
+    => (Code -> Env -> v Value -> (Code -> Code, Env -> Env, [Value]))
+    -> m ()
+modifyCtx update = do
+    code <- get @Code
+    env  <- get @Env
+    vs   <- V.replicateM pop
+    let (updateCode, updateEnv, pushes) = update code env vs
+    modify @Code updateCode
+    modify @Env updateEnv
+    modify @Stack (Stack pushes <>)
 
 eval
     :: ( MonadFail m
@@ -156,10 +177,10 @@ eval
 eval = whileM $ do
     Code cs <- get @Code
     case cs of
-        []       -> return False
-        (c : cs) -> do
-            put @Code $ Code cs
-            transition c
+        []             -> return False
+        (instr : rest) -> do
+            put @Code $ Code rest
+            transition instr
             return True
 
 load :: HasState Code Code m => [Instr] -> m ()
