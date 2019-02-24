@@ -134,7 +134,7 @@ transition Return =
 transition Let          = modifyCtx $ \_ _ (V.Only v) -> (id, (Env [v] <>), [])
 transition EndLet       = modify @Env $ coerce $ tail @Value
 transition (Test c1 c2) = modifyCtx
-    $ \_ _ (V.Only (BoolV v)) -> (((if v then c1 else c2) <>), id, [])
+    $ \_ _ (V.Only (BoolV v)) -> ((ifThenElse v c1 c2 <>), id, [])
 transition Add = calculate $ \(IntV x, IntV y) -> [IntV $ x + y]
 transition Eq  = calculate $ \(IntV x, IntV y) -> [BoolV $ x == y]
 
@@ -185,3 +185,6 @@ eval = whileM $ do
 
 load :: HasState Code Code m => [Instr] -> m ()
 load = put @Code . Code
+
+ifThenElse :: Bool -> p -> p -> p
+ifThenElse c t f = if c then t else f
