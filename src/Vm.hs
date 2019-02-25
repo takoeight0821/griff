@@ -61,9 +61,9 @@ runMachineT (MachineT m) = do
     stackRef <- liftIO $ newIORef []
     m $ Ctx { _code = codeRef, _env = envRef, _stack = stackRef }
 
-dumpCtx :: (HasState "code" Code m, HasState "env" Env m,
-              HasState "stack" Stack m) =>
-             m (Map String String)
+dumpCtx
+    :: (HasState "code" Code m, HasState "env" Env m, HasState "stack" Stack m)
+    => m (Map String String)
 dumpCtx = do
     code  <- get @"code"
     env   <- get @"env"
@@ -113,18 +113,20 @@ viewEnv :: HasState "env" Env f => Int -> f Value
 viewEnv i = (!! i) <$> get @"env"
 
 -- | 状態遷移関数
-transition :: (HasState "code" Code m, HasState "env" Env m,
-                 HasState "stack" Stack m, MonadFail m) =>
-                Instr -> m ()
+transition
+    :: ( HasState "code" Code m
+       , HasState "env" Env m
+       , HasState "stack" Stack m
+       , MonadFail m
+       )
+    => Instr
+    -> m ()
 transition (Int     n) = push $ IntV n
 transition (Bool    b) = push $ BoolV b
 transition (Access  i) = push =<< viewEnv i
 transition (Closure c) = push =<< ClosureV c <$> get @"env"
 transition Apply       = modifyCtx $ \code env (ClosureV code' env', v) ->
-    ( const code'
-    , const ([v, ClosureV code' env'] <> env')
-    , [ClosureV code env]
-    )
+    (const code', const ([v, ClosureV code' env'] <> env'), [ClosureV code env])
 transition Return =
     modifyCtx $ \_ _ (v, ClosureV code env) -> (const code, const env, [v])
 transition Let    = modifyCtx $ \_ _ (V.Only v) -> (id, (v :), [])
@@ -145,23 +147,40 @@ transition (Op op) = case op of
     IGe  -> calculate $ \(IntV x, IntV y) -> [BoolV $ x >= y]
     Not  -> calculate $ \(V.Only (BoolV x)) -> [BoolV $ not x]
 
-calculate :: (HasState "code" Code m, HasState "env" Env m,
-                HasState "stack" Stack m, MonadFail m, V.Vector v Value) =>
-               (v Value -> Stack) -> m ()
+calculate
+    :: ( HasState "code" Code m
+       , HasState "env" Env m
+       , HasState "stack" Stack m
+       , MonadFail m
+       , V.Vector v Value
+       )
+    => (v Value -> Stack)
+    -> m ()
 calculate f = modifyCtx (\_ _ vs -> (id, id, f vs))
 
-modifyCtx :: (HasState "code" Code m, HasState "env" Env m,
-                HasState "stack" Stack m, MonadFail m, V.Vector v Value) =>
-               (Code -> Env -> v Value -> (Code -> Code, Env -> Env, Stack)) -> m ()
+modifyCtx
+    :: ( HasState "code" Code m
+       , HasState "env" Env m
+       , HasState "stack" Stack m
+       , MonadFail m
+       , V.Vector v Value
+       )
+    => (Code -> Env -> v Value -> (Code -> Code, Env -> Env, Stack))
+    -> m ()
 modifyCtx update = do
-    (updateCode, updateEnv, pushes) <- update <$> get @"code" <*> get @"env" <*> V.replicateM pop
+    (updateCode, updateEnv, pushes) <-
+        update <$> get @"code" <*> get @"env" <*> V.replicateM pop
     modify @"code" updateCode
     modify @"env" updateEnv
     modify @"stack" (pushes <>)
 
-eval :: (HasState "code" Code m, HasState "env" Env m,
-           HasState "stack" Stack m, MonadFail m) =>
-          m ()
+eval
+    :: ( HasState "code" Code m
+       , HasState "env" Env m
+       , HasState "stack" Stack m
+       , MonadFail m
+       )
+    => m ()
 eval = whileM $ do
     cs <- get @"code"
     case cs of
