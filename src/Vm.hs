@@ -81,8 +81,13 @@ data Instr = Int Integer -- ^ 整数をスタックにプッシュ
            | Let -- ^ スタックトップの値を環境の先頭にプッシュ
            | EndLet -- ^ 環境の先頭の値を取り除く
            | Test Code Code -- ^ スタックトップの値がtrueなら1つ目、falseなら2つ目の引数を実行する
-           | Add -- ^ 整数の和
-           | Eq -- ^ 整数の等価判定
+           | Op Op
+    deriving (Show, Eq, Ord, Generic)
+
+data Op = IAdd | ISub | IMul | IDiv | IRem
+        -- | FAdd | FSub | FMul | FDiv
+        | IEq | INeq | ILt | ILe | IGt | IGe
+        | Not
     deriving (Show, Eq, Ord, Generic)
 
 newtype Code = Code [Instr]
@@ -109,7 +114,7 @@ pop = do
     return x
 
 viewEnv :: HasState Env Env f => Int -> f Value
-viewEnv i = (\(Env xs) -> xs !! i) <$> get @Env
+viewEnv i = (!! i) . coerce <$> get @Env
 
 -- | 状態遷移関数
 transition
@@ -131,12 +136,23 @@ transition Apply       = modifyCtx $ \code env (ClosureV code' env', v) ->
     )
 transition Return =
     modifyCtx $ \_ _ (v, ClosureV code env) -> (const code, const env, [v])
-transition Let          = modifyCtx $ \_ _ (V.Only v) -> (id, (Env [v] <>), [])
-transition EndLet       = modify @Env $ coerce $ tail @Value
-transition (Test c1 c2) = modifyCtx
-    $ \_ _ (V.Only (BoolV v)) -> ((ifThenElse v c1 c2 <>), id, [])
-transition Add = calculate $ \(IntV x, IntV y) -> [IntV $ x + y]
-transition Eq  = calculate $ \(IntV x, IntV y) -> [BoolV $ x == y]
+transition Let    = modifyCtx $ \_ _ (V.Only v) -> (id, (Env [v] <>), [])
+transition EndLet = modify @Env $ coerce $ tail @Value
+transition (Test c1 c2) =
+    modifyCtx $ \_ _ (V.Only (BoolV v)) -> ((ifThenElse v c1 c2 <>), id, [])
+transition (Op op) = case op of
+    IAdd -> calculate $ \(IntV x, IntV y) -> [IntV $ x + y]
+    ISub -> calculate $ \(IntV x, IntV y) -> [IntV $ x - y]
+    IMul -> calculate $ \(IntV x, IntV y) -> [IntV $ x * y]
+    IDiv -> calculate $ \(IntV x, IntV y) -> [IntV $ x `quot` y] -- truncated toward zero
+    IRem -> calculate $ \(IntV x, IntV y) -> [IntV $ x `rem` y]
+    IEq  -> calculate $ \(IntV x, IntV y) -> [BoolV $ x == y]
+    INeq -> calculate $ \(IntV x, IntV y) -> [BoolV $ x /= y]
+    ILt  -> calculate $ \(IntV x, IntV y) -> [BoolV $ x < y]
+    ILe  -> calculate $ \(IntV x, IntV y) -> [BoolV $ x <= y]
+    IGt  -> calculate $ \(IntV x, IntV y) -> [BoolV $ x > y]
+    IGe  -> calculate $ \(IntV x, IntV y) -> [BoolV $ x >= y]
+    Not  -> calculate $ \(V.Only (BoolV x)) -> [BoolV $ not x]
 
 calculate
     :: ( V.Vector v Value
@@ -159,10 +175,7 @@ modifyCtx
     => (Code -> Env -> v Value -> (Code -> Code, Env -> Env, [Value]))
     -> m ()
 modifyCtx update = do
-    code <- get @Code
-    env  <- get @Env
-    vs   <- V.replicateM pop
-    let (updateCode, updateEnv, pushes) = update code env vs
+    (updateCode, updateEnv, pushes) <- update <$> get @Code <*> get @Env <*> V.replicateM pop
     modify @Code updateCode
     modify @Env updateEnv
     modify @Stack (Stack pushes <>)
