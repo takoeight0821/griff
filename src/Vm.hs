@@ -6,17 +6,14 @@
 {-# LANGUAGE TypeInType #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE GeneralisedNewtypeDeriving #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingVia #-}
-{-# LANGUAGE Strict, StrictData #-}
+{-# LANGUAGE StrictData #-}
 module Vm
     ( Ctx(..)
     , MachineT(..)
-    , Code
     , Env
     , Stack
-    , Instr(..)
     , Value(..)
     , runMachineT
     , load
@@ -37,6 +34,7 @@ import qualified Data.Vector.Fixed             as V
 import           Data.Map                       ( Map )
 import qualified Data.Map                      as Map
 import           GHC.Generics                   ( Generic )
+import           Instr
 
 data Ctx = Ctx {
     _code :: IORef Code,
@@ -48,7 +46,7 @@ type CtxField field m
     = ReaderIORef (Rename field (Field field () (MonadReader (ReaderT Ctx m))))
 
 newtype MachineT (m :: * -> *) a = MachineT (Ctx -> m a)
-    deriving (Functor, Applicative, Monad, MonadFail) via ReaderT Ctx m
+    deriving (Functor, Applicative, Monad, MonadFail, MonadIO) via ReaderT Ctx m
     deriving MonadTrans via ReaderT Ctx
     deriving (HasState "code" Code) via CtxField "_code" m
     deriving (HasState "env" Env) via CtxField "_env" m
@@ -71,26 +69,6 @@ dumpCtx = do
     return $ Map.fromList
         [("code", show code), ("env", show env), ("stack", show stack)]
 
-data Instr = Int Integer -- ^ 整数をスタックにプッシュ
-           | Bool Bool -- ^ 真偽値をスタックにプッシュ
-           | Access Int -- ^ 環境のi番目の値をスタックにプッシュ
-           | Closure Code -- ^ クロージャを作成してスタックにプッシュ
-           | Apply -- ^ スタックトップの値がクロージャなら、2番目の値に適用する
-           | Return -- ^ 関数の呼び出し元に戻る
-           | Let -- ^ スタックトップの値を環境の先頭にプッシュ
-           | EndLet -- ^ 環境の先頭の値を取り除く
-           | Test Code Code -- ^ スタックトップの値がtrueなら1つ目、falseなら2つ目の引数を実行する
-           | Op Op
-    deriving (Show, Eq, Ord, Generic)
-
-data Op = IAdd | ISub | IMul | IDiv | IRem
-        -- | FAdd | FSub | FMul | FDiv
-        | IEq | INeq | ILt | ILe | IGt | IGe
-        | Not
-    deriving (Show, Eq, Ord, Generic)
-
-type Code = [Instr]
-
 type Env = [Value]
 
 type Stack = [Value]
@@ -109,9 +87,6 @@ pop = do
     put @"stack" xs
     return x
 
-viewEnv :: HasState "env" Env f => Int -> f Value
-viewEnv i = (!! i) <$> get @"env"
-
 -- | 状態遷移関数
 transition
     :: ( HasState "code" Code m
@@ -123,7 +98,7 @@ transition
     -> m ()
 transition (Int     n) = push $ IntV n
 transition (Bool    b) = push $ BoolV b
-transition (Access  i) = push =<< viewEnv i
+transition (Access  i) = push . (!! i) =<< get @"env"
 transition (Closure c) = push =<< ClosureV c <$> get @"env"
 transition Apply       = modifyCtx $ \code env (ClosureV code' env', v) ->
     (const code', const ([v, ClosureV code' env'] <> env'), [ClosureV code env])
@@ -146,6 +121,8 @@ transition (Op op) = case op of
     IGt  -> calculate $ \(IntV x, IntV y) -> [BoolV $ x > y]
     IGe  -> calculate $ \(IntV x, IntV y) -> [BoolV $ x >= y]
     Not  -> calculate $ \(V.Only (BoolV x)) -> [BoolV $ not x]
+    And  -> calculate $ \(BoolV x, BoolV y) -> [BoolV $ x && y]
+    Or   -> calculate $ \(BoolV x, BoolV y) -> [BoolV $ x || y]
 
 calculate
     :: ( HasState "code" Code m

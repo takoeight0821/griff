@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 6d93b03be5078adf2eacd365cf4387f7132511a1abc607764deca205bcfff4bf
+-- hash: 38e539d7f3f08db80674f210c8060f71bc408cb72126bc1d095263ebcbefe7f1
 
 name:           griff
 version:        0.1.0.0
@@ -27,6 +27,10 @@ source-repository head
 
 library
   exposed-modules:
+      Instr
+      Lambda
+      Language.Griff.Id
+      Language.Griff.Uniq
       Lib
       Vm
   other-modules:
@@ -40,7 +44,11 @@ library
     , containers
     , extra
     , fixed-vector
+    , megaparsec
     , mtl
+    , operational
+    , outputable
+    , text
   default-language: Haskell2010
 
 executable griff-exe
@@ -52,7 +60,16 @@ executable griff-exe
   ghc-options: -Wall -fwarn-tabs -fwarn-incomplete-record-updates -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , capability
+    , containers
+    , extra
+    , fixed-vector
     , griff
+    , megaparsec
+    , mtl
+    , operational
+    , outputable
+    , text
   default-language: Haskell2010
 
 test-suite griff-test
@@ -65,5 +82,14 @@ test-suite griff-test
   ghc-options: -Wall -fwarn-tabs -fwarn-incomplete-record-updates -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , capability
+    , containers
+    , extra
+    , fixed-vector
     , griff
+    , megaparsec
+    , mtl
+    , operational
+    , outputable
+    , text
   default-language: Haskell2010

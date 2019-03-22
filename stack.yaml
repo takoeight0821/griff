@@ -40,6 +40,8 @@ packages:
 extra-deps:
 - capability-0.1.0.0
 - generic-lens-1.0.0.2
+- github: takoeight0821/outputable
+  commit: 'b881db5'
 
 # Override default flag values for local packages and extra-deps
 # flags: {}
