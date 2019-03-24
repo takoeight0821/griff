@@ -1,16 +1,17 @@
+{-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE OverloadedStrings         #-}
 module Language.Griff.Id where
 
+import           Data.Data
+import           Data.Outputable
 import           Data.Text           (Text)
 import           GHC.Generics        (Generic)
 import           Language.Griff.Uniq
-import Data.Outputable
 
 data Id = Id Text Int
-  deriving (Show, Eq, Ord, Generic)
+  deriving (Show, Eq, Ord, Generic, Data)
 
 instance Outputable Id
 

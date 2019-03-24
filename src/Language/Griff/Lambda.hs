@@ -1,17 +1,15 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric      #-}
 module Language.Griff.Lambda where
 
+import           Control.Lens
+import           Data.Data
 import           Data.Outputable
 import           GHC.Generics
+import           Language.Griff.Constant
 import           Language.Griff.Id
 
 -- Lambda Calculus
-
-data Constant = Int Integer
-              | Char Char
-              | String String
-              | Bool Bool
-  deriving (Eq, Ord, Show, Generic)
 
 -- sum typeをtagで区別する
 type Tag = Int
@@ -23,18 +21,17 @@ data Exp = Const Constant
          | Apply Exp Exp
          | Lambda Id Exp
          | Let Id Exp Exp
-         | LetRec [(Id, Exp)] Exp
+         | LetRec Id Exp Exp
          | Prim Primitive
          | If Exp Exp Exp -- constantに対するcaseはifに変換
-         | Switch Exp [(Tag, Exp)] -- sum typeのconstructorに対するcaseはswitchに変換
-         | Constructor Tag Arity
-  deriving (Eq, Ord, Show, Generic)
+         | Switch Id Tag Exp Exp -- sum typeのconstructorに対するcaseはswitchに変換
+  deriving (Eq, Ord, Show, Generic, Data)
 
-data Primitive = Add | Sub
-               | Sel Arity Int
-  deriving (Eq, Ord, Show, Generic)
+instance Plated Exp
 
-instance Outputable Constant
+data Primitive = Add | Sub | Sel Arity Int | Pack Tag Arity
+  deriving (Eq, Ord, Show, Generic, Data)
+
 instance Outputable Exp
 instance Outputable Primitive
 

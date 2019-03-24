@@ -25,11 +25,12 @@ dependencies:
 - containers
 - extra
 - fixed-vector
+- lens
 - megaparsec
 - mtl
-- text
 - operational
 - outputable
+- text
 
 ghc-options:
 - -Wall

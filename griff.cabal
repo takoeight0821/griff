@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 38e539d7f3f08db80674f210c8060f71bc408cb72126bc1d095263ebcbefe7f1
+-- hash: bfd60d21784240b735ac2373ecfe0eae89e87fd50d351af30d179bc0aabca7ae
 
 name:           griff
 version:        0.1.0.0
@@ -27,12 +27,10 @@ source-repository head
 
 library
   exposed-modules:
-      Instr
-      Lambda
+      Language.Griff.ELambda
       Language.Griff.Id
+      Language.Griff.Lambda
       Language.Griff.Uniq
-      Lib
-      Vm
   other-modules:
       Paths_griff
   hs-source-dirs:
@@ -44,6 +42,7 @@ library
     , containers
     , extra
     , fixed-vector
+    , lens
     , megaparsec
     , mtl
     , operational
@@ -65,6 +64,7 @@ executable griff-exe
     , extra
     , fixed-vector
     , griff
+    , lens
     , megaparsec
     , mtl
     , operational
@@ -87,6 +87,7 @@ test-suite griff-test
     , extra
     , fixed-vector
     , griff
+    , lens
     , megaparsec
     , mtl
     , operational
