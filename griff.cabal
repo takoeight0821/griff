@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: bfd60d21784240b735ac2373ecfe0eae89e87fd50d351af30d179bc0aabca7ae
+-- hash: 3b710e73290cce0501183c006439ae7a7e5ae72eee846d74df92bc09d104dbc1
 
 name:           griff
 version:        0.1.0.0
@@ -27,9 +27,12 @@ source-repository head
 
 library
   exposed-modules:
+      Language.Griff.Constant
       Language.Griff.ELambda
       Language.Griff.Id
       Language.Griff.Lambda
+      Language.Griff.SrcSpan
+      Language.Griff.Syntax
       Language.Griff.Uniq
   other-modules:
       Paths_griff
@@ -47,6 +50,8 @@ library
     , mtl
     , operational
     , outputable
+    , prettyprinter
+    , reflection
     , text
   default-language: Haskell2010
 
@@ -69,6 +74,8 @@ executable griff-exe
     , mtl
     , operational
     , outputable
+    , prettyprinter
+    , reflection
     , text
   default-language: Haskell2010
 
@@ -92,5 +99,7 @@ test-suite griff-test
     , mtl
     , operational
     , outputable
+    , prettyprinter
+    , reflection
     , text
   default-language: Haskell2010

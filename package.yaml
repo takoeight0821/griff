@@ -24,12 +24,14 @@ dependencies:
 - capability
 - containers
 - extra
+- reflection
 - fixed-vector
 - lens
 - megaparsec
 - mtl
 - operational
 - outputable
+- prettyprinter
 - text
 
 ghc-options:
