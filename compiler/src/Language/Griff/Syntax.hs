@@ -20,10 +20,16 @@ data Exp a = Var SrcSpan a
            | Let SrcSpan (Pat a) (Exp a) (Exp a)
            | LetRec SrcSpan [(Pat a, Exp a)] (Exp a)
            | Parens SrcSpan (Exp a)
+           | BinOp SrcSpan Op (Exp a) (Exp a)
            | Case SrcSpan (Exp a) [(Pat a, Exp a)]
   deriving (Eq, Ord, Show, Generic, Data)
 
 instance Outputable a => Outputable (Exp a)
+
+data Op = Add | Sub | Mul | Div | Mod | FAdd | FSub | FMul | FDiv | Eq | Neq | Lt | Le | Gt | Ge | And | Or
+  deriving (Eq, Ord, Show, Generic, Data)
+
+instance Outputable Op
 
 data Pat a = VarP SrcSpan a
            | IntP SrcSpan Integer
