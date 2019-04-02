@@ -1,3 +1,4 @@
+use log::*;
 use std::rc::Rc;
 use std::vec::Vec;
 
@@ -47,13 +48,19 @@ impl Vm {
     }
 
     pub fn execute(&mut self) {
+        debug!("DUMP");
+        debug!("CODE: {:?}", self.code);
+        debug!("ENV: {:?}", self.env);
+        debug!("STACK: {:?}", self.stack);
+        debug!("");
+
         while !self.code.is_empty() {
-            println!("DUMP");
-            println!("CODE: {:?}", self.code);
-            println!("ENV: {:?}", self.env);
-            println!("STACK: {:?}", self.stack);
-            println!("");
             self.next();
+            debug!("DUMP");
+            debug!("CODE: {:?}", self.code);
+            debug!("ENV: {:?}", self.env);
+            debug!("STACK: {:?}", self.stack);
+            debug!("");
         }
     }
 
@@ -129,6 +136,7 @@ impl Vm {
 }
 
 fn main() {
+    env_logger::init();
     use Instr::*;
     let code = vec![
         Closure(vec![
@@ -148,9 +156,8 @@ fn main() {
         EndLet,
     ];
 
-    println!("{:?}", code);
-
     let mut vm = Vm::new(code);
     vm.execute();
-    println!("{:?}", vm);
+
+    println!("{:?}", vm.stack);
 }
