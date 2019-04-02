@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use std::vec::Vec;
 
 #[derive(Debug, Clone)]
@@ -7,9 +8,9 @@ pub enum Value {
     ClosVal(Code, Env),
 }
 
-type Env = Vec<Value>;
+type Env = Vec<Rc<Value>>;
 
-type Stack = Vec<Value>;
+type Stack = Vec<Rc<Value>>;
 
 type Code = Vec<Instr>;
 
@@ -62,30 +63,35 @@ impl Vm {
 
         if let Some(instr) = self.code.pop() {
             match instr {
-                Ldi(n) => self.stack.push(IntVal(n)),
-                Ldb(b) => self.stack.push(BoolVal(b)),
+                Ldi(n) => self.stack.push(Rc::new(IntVal(n))),
+                Ldb(b) => self.stack.push(Rc::new(BoolVal(b))),
                 Access(i) => self.stack.push(self.env[self.env.len() - 1 - i].clone()),
-                Closure(c) => self
-                    .stack
-                    .push(ClosVal(c.into_iter().rev().collect(), self.env.clone())),
+                Closure(c) => self.stack.push(Rc::new(ClosVal(
+                    c.into_iter().rev().collect(),
+                    self.env.clone(),
+                ))),
                 Apply => {
-                    if let Some(ClosVal(c, env)) = self.stack.pop() {
-                        if let Some(v) = self.stack.pop() {
-                            self.stack
-                                .push(ClosVal(self.code.clone(), self.env.clone()));
-                            self.code = c.clone();
-                            self.env = env.clone();
-                            self.env.push(ClosVal(c, env));
-                            self.env.push(v);
+                    if let Some(clos) = self.stack.pop() {
+                        if let ClosVal(ref c, ref env) = *clos {
+                            if let Some(v) = self.stack.pop() {
+                                self.stack
+                                    .push(Rc::new(ClosVal(self.code.clone(), self.env.clone())));
+                                self.code = c.clone();
+                                self.env = env.clone();
+                                self.env.push(clos);
+                                self.env.push(v);
+                            }
                         }
                     }
                 }
                 Return => {
                     if let Some(v) = self.stack.pop() {
-                        if let Some(ClosVal(c, env)) = self.stack.pop() {
-                            self.code = c;
-                            self.env = env;
-                            self.stack.push(v);
+                        if let Some(clos) = self.stack.pop() {
+                            if let ClosVal(ref c, ref env) = *clos {
+                                self.code = c.clone();
+                                self.env = env.clone();
+                                self.stack.push(v);
+                            }
                         }
                     }
                 }
@@ -98,22 +104,22 @@ impl Vm {
                     self.env.pop();
                 }
                 Test(c1, c2) => {
-                    if let Some(BoolVal(b)) = self.stack.pop() {
+                    if let BoolVal(b) = *self.stack.pop().unwrap() {
                         self.code
                             .append(&mut if b { c1 } else { c2 }.into_iter().rev().collect());
                     }
                 }
                 Add => {
-                    if let Some(IntVal(n1)) = self.stack.pop() {
-                        if let Some(IntVal(n2)) = self.stack.pop() {
-                            self.stack.push(IntVal(n1 + n2));
+                    if let IntVal(n1) = *self.stack.pop().unwrap() {
+                        if let IntVal(n2) = *self.stack.pop().unwrap() {
+                            self.stack.push(Rc::new(IntVal(n1 + n2)));
                         }
                     }
                 }
                 Eq => {
-                    if let Some(IntVal(n1)) = self.stack.pop() {
-                        if let Some(IntVal(n2)) = self.stack.pop() {
-                            self.stack.push(BoolVal(n1 == n2));
+                    if let IntVal(n1) = *self.stack.pop().unwrap() {
+                        if let IntVal(n2) = *self.stack.pop().unwrap() {
+                            self.stack.push(Rc::new(BoolVal(n1 == n2)));
                         }
                     }
                 }
