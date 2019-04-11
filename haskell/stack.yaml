@@ -38,7 +38,7 @@ packages:
 # using the same syntax as the packages field.
 # (e.g., acme-missiles-0.3)
 extra-deps:
-- capability-0.1.0.0
+- capability-0.2.0.0
 - generic-lens-1.0.0.2
 - github: takoeight0821/outputable
   commit: 'b881db5'
