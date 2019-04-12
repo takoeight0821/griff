@@ -18,6 +18,7 @@ type Arity = Int
 
 data Exp = Const Constant
          | Var Id
+         | Constructor Tag Arity
          | Apply Exp Exp
          | Lambda Id Exp
          | Let Id Exp Exp

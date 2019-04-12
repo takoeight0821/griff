@@ -13,6 +13,7 @@ import           Language.Griff.Id
 
 data Exp = Const Constant
          | Var Id
+         | Constructor Id
          | Apply Exp Exp
          | Lambda Pat Exp
          | Let Pat Exp Exp

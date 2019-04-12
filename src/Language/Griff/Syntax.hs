@@ -15,6 +15,7 @@ data Exp a = Var SrcSpan a
            | Bool SrcSpan Bool
            | Char SrcSpan Char
            | String SrcSpan String
+           | Constructor SrcSpan a
            | Apply SrcSpan (Exp a) (Exp a)
            | Lambda SrcSpan (Pat a) (Exp a) (Exp a)
            | Let SrcSpan (Pat a) (Exp a) (Exp a)
