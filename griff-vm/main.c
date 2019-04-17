@@ -10,7 +10,6 @@ struct env
 {
   struct value *array;
   size_t length;
-  size_t max_length;
 };
 
 typedef void(Code)(void);
@@ -73,9 +72,9 @@ struct env *Env;
 
 #define ENV_INIT()                                      \
   Env = malloc(sizeof(struct env));                     \
-  Env->array = GC_MALLOC(sizeof(struct value) * CHUNK); \
+  Env->array = GC_MALLOC(sizeof(struct value) * CHUNK + 1); \
   Env->length = 0;                                      \
-  Env->max_length = CHUNK;
+  Env->array[CHUNK] = make_epsilon();
 
 void dump_value(struct value v)
 {
@@ -162,10 +161,10 @@ struct value pop(struct stack *s)
 
 void push_env(struct env *env, struct value value)
 {
-  if (env->length >= env->max_length)
+  if (env->array[env->length].tag == EPSILON )
   {
-    env->max_length += CHUNK;
-    env->array = GC_REALLOC(env->array, sizeof(struct value) * env->max_length);
+    env->array = GC_REALLOC(env->array, sizeof(struct value) * env->length + CHUNK + 1);
+    env->array[env->length + CHUNK] = make_epsilon();
   }
   env->array[env->length] = value;
   env->length++;
@@ -187,8 +186,10 @@ void access(size_t i)
 
 struct env copy_env(struct env old)
 {
-  struct env new_env = {.array = GC_MALLOC(old.max_length * sizeof(struct value)), .length = old.length, .max_length = old.max_length};
-  for (size_t i = 0; i < old.length; i++)
+  // TODO: old.lengthをMAX(old.length, CHUNK)に置き換え
+  struct env new_env = {.array = GC_MALLOC(old.length * sizeof(struct value)), .length = old.length,};
+  // epsilonまでコピーしたいのでi <= old.length
+  for (size_t i = 0; i <= old.length; i++)
   {
     new_env.array[i] = old.array[i];
   }
