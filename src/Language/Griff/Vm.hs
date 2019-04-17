@@ -48,8 +48,8 @@ newtype MachineT m a = MachineT (StateT Ctx m a)
   deriving (Functor, Applicative, Monad, MonadIO, MonadState Ctx, MonadFail)
 
 runMachineT :: MachineT m a -> Ctx -> m (a, Ctx)
-runMachineT (MachineT m) =
-  runStateT m
+runMachineT m =
+  runStateT $ m ^. coerced
 
 push :: MonadState Ctx m => Value -> m ()
 push x = stackL %= (x:)

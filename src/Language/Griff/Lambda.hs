@@ -18,19 +18,24 @@ type Arity = Int
 
 data Exp = Const Constant
          | Var Id
-         | Constructor Tag Arity
          | Apply Exp Exp
          | Lambda Id Exp
          | Let Id Exp Exp
          | LetRec Id Exp Exp
          | Prim Primitive
          | If Exp Exp Exp -- constantに対するcaseはifに変換
-         | Switch Id Tag Exp Exp -- sum typeのconstructorに対するcaseはswitchに変換
+         | Switch Id [(Tag, Exp)] -- sum typeのconstructorに対するcaseはswitchに変換
   deriving (Eq, Ord, Show, Generic, Data)
 
 instance Plated Exp
 
-data Primitive = Add | Sub | Sel Arity Int | Pack Tag Arity
+data Primitive = Add | Sub | Mul | Div | Mod -- Int
+               | FAdd | FSub | FMul | FDiv -- Float
+               | Eq | Neq -- Eq
+               | Lt | Le | Gt | Ge -- Ord
+               | And | Or -- Bool
+               | Sel Arity Int -- unwrap Constructor
+               | Pack Tag Arity -- wrap Constructor
   deriving (Eq, Ord, Show, Generic, Data)
 
 instance Outputable Exp
