@@ -19,6 +19,7 @@ typedef void(Code)(void);
 #define EPSILON 1
 #define CLOSURE 2
 #define RETURN 3
+#define BLOCK 4
 
 struct value
 {
@@ -29,6 +30,12 @@ struct value
       Code *entry;
       struct env env;
     } clos;
+    struct
+    {
+      struct value* vec;
+      size_t len;
+      uint_fast8_t tag;
+    } block;
   } value;
   uint_fast8_t tag;
 };
@@ -66,21 +73,30 @@ struct env *Env;
 
 void dump_value(struct value v)
 {
-  if (v.tag == INTEGER)
-  {
+  switch (v.tag) {
+  case INTEGER:
     printf("%d", v.value.integer);
-  }
-  else if (v.tag == CLOSURE)
-  {
+    break;
+  case CLOSURE:
     printf("%p", v.value.clos.entry);
-  }
-  else if (v.tag == RETURN)
-  {
+    break;
+  case RETURN:
     printf("ret");
-  }
-  else
-  {
+    break;
+  case EPSILON:
     printf("epsilon");
+    break;
+  case BLOCK:
+    printf("(%d ", v.value.block.tag);
+    for (size_t i = 0; i < v.value.block.len; i++) {
+      if (i != 0)
+        printf(", ");
+      dump_value(v.value.block.vec[i]);
+    }
+    printf(")");
+    break;
+  default:
+    break;
   }
 }
 
@@ -237,6 +253,42 @@ void eq(void)
   push(ArgStack, n3);
 }
 
+void make_block(uint_fast8_t tag, size_t len) {
+  struct value ret =
+    {
+     .tag = BLOCK,
+     .value =
+     {
+      .block =
+      {
+       .vec = GC_MALLOC(sizeof(struct value) * len),
+       .len = len,
+       .tag = tag,
+      },
+     },
+    };
+  for (size_t i = 0; i < len; i++) {
+    ret.value.block.vec[i] = pop(ArgStack);
+  }
+  push(ArgStack, ret);
+}
+
+void field(size_t i)
+{
+  struct value block = pop(ArgStack);
+  push(ArgStack, block.value.block.vec[i]);
+}
+
+struct value peek(struct stack s) {
+  return *(s.curr - 1);
+}
+
+void invoke(uint_fast8_t tag, Code* cont) {
+  if (peek(*ArgStack).value.block.tag == tag) {
+    cont();
+  }
+}
+
 void apply(void)
 {
   struct value closure = pop(ArgStack);
@@ -354,6 +406,53 @@ void entry(void)
   endlet();
 }
 
+void invoke_test(void)
+{
+  struct value v = pop(ArgStack);
+  printf("DEBUG:");
+  dump_value(v);
+  printf("\n");
+  dump_stack(*ArgStack);
+  ldi(10);
+  dump_stack(*ArgStack);
+}
+
+void block_test_entry(void)
+{
+  ldi(3);
+  ldi(2);
+  ldi(1);
+  make_block(0, 2);
+  invoke(0, invoke_test);
+  dump_stack(*ArgStack);
+}
+
+void when_nil(void)
+{
+  struct value v = pop(ArgStack);
+  printf("NIL: ");
+  dump_value(v);
+  printf("\n");
+}
+
+void when_cons(void)
+{
+  struct value v = pop(ArgStack);
+  printf("CONS: ");
+  dump_value(v);
+  printf("\n");
+}
+
+void cons_entry(void)
+{
+  make_block(0, 0);
+  ldi(42);
+  make_block(1, 2);
+  invoke(0, when_nil);
+  invoke(1, when_cons);
+  ldi(0);
+}
+
 int main()
 {
   GC_INIT();
@@ -362,8 +461,5 @@ int main()
 
   ENV_INIT();
 
-  entry();
-
-  dump_value(*ArgStack->curr);
-  printf("\n");
+  cons_entry();
 }
