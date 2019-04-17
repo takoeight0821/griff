@@ -50,6 +50,12 @@ struct stack
 struct stack *ArgStack;
 struct stack *RetStack;
 
+// use as mark on ArgStack and struct env
+struct value make_epsilon() {
+  struct value e = {.tag = EPSILON };
+  return e;
+}
+
 #define CHUNK 16
 #define MARGIN (CHUNK * 2)
 
@@ -106,8 +112,9 @@ void dump_stack(struct stack s)
 
   for (size_t i = 0; i < s.curr - s.base; i++)
   {
+    if (i != 0)
+      printf(", ");
     dump_value(s.base[i]);
-    printf(", ");
   }
 
   printf("]");
@@ -320,8 +327,7 @@ void tail_apply(void)
 
 void push_mark(void)
 {
-  struct value e = {.tag = EPSILON};
-  push(ArgStack, e);
+  push(ArgStack, make_epsilon());
 }
 
 void grab(Code *cont)
@@ -404,6 +410,8 @@ void entry(void)
   access(0);
   apply();
   endlet();
+
+  dump_stack(*ArgStack);
 }
 
 void invoke_test(void)
@@ -461,5 +469,7 @@ int main()
 
   ENV_INIT();
 
-  cons_entry();
+  entry();
+  /* block_test_entry(); */
+  /* cons_entry(); */
 }
