@@ -19,6 +19,7 @@ typedef void(Code)(void);
 #define CLOSURE 2
 #define RETURN 3
 #define BLOCK 4
+#define MEMTERM 5
 
 struct value
 {
@@ -43,15 +44,13 @@ struct stack
 {
   struct value *base;
   struct value *curr;
-  size_t size;
 };
 
 struct stack *ArgStack;
 struct stack *RetStack;
 
-// use as mark on ArgStack and struct env
-struct value make_epsilon() {
-  struct value e = {.tag = EPSILON };
+struct value make_memterm() {
+  struct value e = {.tag = MEMTERM };
   return e;
 }
 
@@ -60,13 +59,13 @@ struct value make_epsilon() {
 
 #define STACK_INIT()                                     \
   ArgStack = malloc(sizeof(struct stack));               \
-  ArgStack->base = malloc(sizeof(struct value) * CHUNK); \
+  ArgStack->base = malloc(sizeof(struct value) * (CHUNK + 1));  \
   ArgStack->curr = ArgStack->base;                       \
-  ArgStack->size = CHUNK;                                \
+  ArgStack->base[CHUNK] = make_memterm();                \
   RetStack = malloc(sizeof(struct stack));               \
-  RetStack->base = malloc(sizeof(struct value) * CHUNK); \
-  RetStack->curr = RetStack->base;                       \
-  RetStack->size = CHUNK;
+  RetStack->base = malloc(sizeof(struct value) * (CHUNK + 1));  \
+  RetStack->curr = RetStack->base;                              \
+  RetStack->base[CHUNK] = make_memterm();
 
 struct env *Env;
 
@@ -74,7 +73,7 @@ struct env *Env;
   Env = malloc(sizeof(struct env));                     \
   Env->array = GC_MALLOC(sizeof(struct value) * CHUNK + 1); \
   Env->length = 0;                                      \
-  Env->array[CHUNK] = make_epsilon();
+  Env->array[CHUNK] = make_memterm();
 
 void dump_value(struct value v)
 {
@@ -132,12 +131,12 @@ void dump_env(struct env env)
 void push(struct stack *s, struct value value)
 {
   // メモリが足りなくなったら+CHUNK
-  if (s->curr - s->base >= s->size)
-  {
-    s->size += CHUNK;
+  // s->currにすでにepsilonが入っていたらメモリ不足
+  if (s->curr->tag == EPSILON) {
     ptrdiff_t diff = s->curr - s->base;
-    s->base = realloc(s->base, s->size * sizeof(struct value));
+    s->base = realloc(s->base, (diff + CHUNK + 1) * sizeof(struct value));
     s->curr = s->base + diff;
+    s->base[diff + CHUNK] = make_memterm();
   }
 
   *s->curr = value;
@@ -147,14 +146,14 @@ void push(struct stack *s, struct value value)
 struct value pop(struct stack *s)
 {
   s->curr--;
-  // メモリがMARGIN余ったら-CHUNK
-  if (s->size > MARGIN && s->curr - s->base < s->size - MARGIN - 1)
-  {
-    s->size -= CHUNK;
-    ptrdiff_t diff = s->curr - s->base;
-    s->base = realloc(s->base, s->size * sizeof(struct value));
-    s->curr = s->base + diff;
-  }
+  /* // メモリがMARGIN余ったら-CHUNK */
+  /* if (s->size > MARGIN && s->curr - s->base < s->size - MARGIN - 1) */
+  /* { */
+  /*   s->size -= CHUNK; */
+  /*   ptrdiff_t diff = s->curr - s->base; */
+  /*   s->base = realloc(s->base, s->size * sizeof(struct value)); */
+  /*   s->curr = s->base + diff; */
+  /* } */
 
   return *s->curr;
 }
@@ -164,7 +163,7 @@ void push_env(struct env *env, struct value value)
   if (env->array[env->length].tag == EPSILON )
   {
     env->array = GC_REALLOC(env->array, sizeof(struct value) * env->length + CHUNK + 1);
-    env->array[env->length + CHUNK] = make_epsilon();
+    env->array[env->length + CHUNK] = make_memterm();
   }
   env->array[env->length] = value;
   env->length++;
@@ -326,6 +325,11 @@ void tail_apply(void)
   closure.value.clos.entry();
 }
 
+struct value make_epsilon() {
+  struct value e = {.tag = EPSILON };
+  return e;
+}
+
 void push_mark(void)
 {
   push(ArgStack, make_epsilon());
@@ -418,12 +422,7 @@ void entry(void)
 void invoke_test(void)
 {
   struct value v = pop(ArgStack);
-  printf("DEBUG:");
-  dump_value(v);
-  printf("\n");
-  dump_stack(*ArgStack);
   ldi(10);
-  dump_stack(*ArgStack);
 }
 
 void block_test_entry(void)
@@ -470,7 +469,7 @@ int main()
 
   ENV_INIT();
 
-  entry();
-  /* block_test_entry(); */
-  /* cons_entry(); */
+  /* entry(); // 50005000 */
+  /* block_test_entry(); // simple invoke test */
+  cons_entry(); // list
 }
