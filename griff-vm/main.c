@@ -14,7 +14,7 @@ struct env
   size_t length;
 };
 
-typedef void(Code)(void);
+typedef void*(Code)(void);
 
 #define INTEGER 0
 #define EPSILON 1
@@ -232,15 +232,15 @@ void endlet(void)
   Env->length--;
 }
 
-void test(Code *c1, Code *c2)
+Code* test(Code *c1, Code *c2)
 {
   if (pop(ArgStack).value.integer)
   {
-    c1();
+    return c1;
   }
   else
   {
-    c2();
+    return c2;
   }
 }
 
@@ -296,18 +296,20 @@ struct value peek(struct stack s) {
   return *(s.curr - 1);
 }
 
-void invoke(uint_fast8_t tag, Code* cont) {
+Code* invoke(uint_fast8_t tag, Code* cont1, Code* cont2) {
   if (peek(*ArgStack).value.block.tag == tag) {
-    cont();
+    return cont1;
+  } else {
+    return cont2;
   }
 }
 
-void apply(void)
+Code* apply(Code* cont)
 {
   struct value closure = pop(ArgStack);
   struct value val = pop(ArgStack);
 
-  struct value save = new_closure((Code *)0xdeadbeef, *Env);
+  struct value save = new_closure(cont, *Env);
   save.tag = RETURN;
   push(RetStack, save);
 
@@ -320,10 +322,10 @@ void apply(void)
   push_env(Env, closure);
   push_env(Env, val);
 
-  closure.value.clos.entry();
+  return closure.value.clos.entry;
 }
 
-void tail_apply(void)
+Code* tail_apply(void)
 {
   struct value closure = pop(ArgStack);
   struct value val = pop(ArgStack);
@@ -338,7 +340,7 @@ void tail_apply(void)
   /* dump_env(*Env); */
   /* printf("%lu %lu %lu\n\n", GC_get_gc_no(), GC_get_heap_size(), GC_get_free_bytes()); */
 
-  closure.value.clos.entry();
+  return closure.value.clos.entry;
 }
 
 struct value make_epsilon() {
@@ -351,7 +353,7 @@ void push_mark(void)
   push(ArgStack, make_epsilon());
 }
 
-void grab(Code *cont)
+Code* grab(Code *cont)
 {
   struct value v = pop(ArgStack);
 
@@ -367,6 +369,7 @@ void grab(Code *cont)
 
     *Env = ret.value.clos.env;
     push(ArgStack, v);
+    return ret.value.clos.entry;
   }
   else
   {
@@ -374,40 +377,43 @@ void grab(Code *cont)
     *Env = copy_env(closure.value.clos.env);
     push_env(Env, closure);
     push_env(Env, v);
-    cont();
+    return cont;
   }
 }
 
-void return_clos(void)
+Code* return_clos(void)
 {
   struct value x = pop(ArgStack);
   struct value y = pop(ArgStack);
 
   if (y.tag == EPSILON)
   {
-    *Env = pop(RetStack).value.clos.env;
+    struct value ret = pop(RetStack);
+    *Env = ret.value.clos.env;
 
     /* printf("return_clos: "); */
     /* dump_stack(*RetStack); */
     /* printf("\n"); */
 
     push(ArgStack, x);
+    return ret.value.clos.entry;
   }
   else
   {
     *Env = copy_env(x.value.clos.env);
     push_env(Env, x);
     push_env(Env, y);
+    return x.value.clos.entry;
   }
 }
 
-void c1(void)
+Code* c1(void)
 {
   access(0);
-  return_clos();
+  return return_clos();
 }
 
-void c2(void)
+Code* c2(void)
 {
   access(0);
   access(2);
@@ -416,79 +422,94 @@ void c2(void)
   access(2);
   add();
   access(3);
-  tail_apply();
+  return tail_apply();
 }
 
-void f_cont(void)
+Code* f_cont(void)
 {
   ldi(0);
   access(2);
   eq();
-  test(c1, c2);
+  return test((Code*)c1, (Code*)c2);
 }
 
-void f(void)
+Code* f(void)
 {
-  grab(f_cont);
+  return grab((Code*)f_cont);
 }
 
-void entry(void)
-{
-  closure(f);
-  let();
-  push_mark();
-  ldi(0);
-  ldi(100000);
-  /* dump_stack(*ArgStack); */
-  /* printf("\n"); */
-  access(0);
-  apply();
+Code* end(void) {
   endlet();
 
   dump_stack(*ArgStack);
+
+  exit(0);
 }
 
-void invoke_test(void)
+Code* entry(void)
+{
+  closure((Code*)f);
+  let();
+  push_mark();
+  ldi(0);
+  ldi(10);
+  access(0);
+  return apply((Code*)end);
+}
+
+Code* invoke_test(void)
 {
   struct value v = pop(ArgStack);
   ldi(10);
+  dump_stack(*ArgStack);
+  exit(0);
 }
 
-void block_test_entry(void)
+Code* block_test_entry(void)
 {
   ldi(3);
   ldi(2);
   ldi(1);
   make_block(0, 2);
-  invoke(0, invoke_test);
-  dump_stack(*ArgStack);
+  return invoke(0, (Code*)invoke_test, NULL);
 }
 
-void when_nil(void)
+Code* when_fail(void){
+  printf("unreachable¥n");
+  exit(1);
+}
+
+Code* when_nil(void)
 {
   struct value v = pop(ArgStack);
   printf("NIL: ");
   dump_value(v);
   printf("\n");
+  exit(0);
 }
 
-void when_cons(void)
+Code* when_cons(void)
 {
   struct value v = pop(ArgStack);
   printf("CONS: ");
   dump_value(v);
   printf("\n");
+  exit(0);
 }
 
-void cons_entry(void)
+Code* next_nil(void)
+{
+  return invoke(1, (Code*)when_cons, (Code*) when_fail);
+}
+
+Code* cons_entry(void)
 {
   make_block(0, 0);
   ldi(42);
   make_block(1, 2);
-  invoke(0, when_nil);
-  invoke(1, when_cons);
-  ldi(0);
+  return invoke(0, (Code*)when_nil, (Code*)next_nil);
 }
+
 
 int main()
 {
@@ -497,7 +518,12 @@ int main()
   stack_init();
   env_init();
 
-  entry(); // 50005000
+
+  Code* cont = (Code*)cons_entry;
+  while (true) {
+    cont = cont();
+  }
+  /* entry(); // 50005000 */
   /* block_test_entry(); // simple invoke test */
   // cons_entry(); // list
 }
