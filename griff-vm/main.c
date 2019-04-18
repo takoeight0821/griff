@@ -1,4 +1,6 @@
+#define GC_DEBUG
 #include <stdlib.h>
+#include <setjmp.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <gc.h>
@@ -57,23 +59,26 @@ struct value make_memterm() {
 #define CHUNK 16
 #define MARGIN (CHUNK * 2)
 
-#define STACK_INIT()                                     \
-  ArgStack = malloc(sizeof(struct stack));               \
-  ArgStack->base = malloc(sizeof(struct value) * (CHUNK + 1));  \
-  ArgStack->curr = ArgStack->base;                       \
-  ArgStack->base[CHUNK] = make_memterm();                \
-  RetStack = malloc(sizeof(struct stack));               \
-  RetStack->base = malloc(sizeof(struct value) * (CHUNK + 1));  \
-  RetStack->curr = RetStack->base;                              \
+
+void stack_init() {
+  ArgStack = malloc(sizeof(struct stack));
+  ArgStack->base = calloc(CHUNK + 1, sizeof(struct value));
+  ArgStack->curr = ArgStack->base;
+  ArgStack->base[CHUNK] = make_memterm();
+  RetStack = malloc(sizeof(struct stack));
+  RetStack->base = calloc(CHUNK + 1, sizeof(struct value));
+  RetStack->curr = RetStack->base;
   RetStack->base[CHUNK] = make_memterm();
+}
 
 struct env *Env;
 
-#define ENV_INIT()                                      \
-  Env = malloc(sizeof(struct env));                     \
-  Env->array = GC_MALLOC(sizeof(struct value) * CHUNK + 1); \
-  Env->length = 0;                                      \
+void env_init() {
+  Env = malloc(sizeof(struct env));
+  Env->array = GC_MALLOC(sizeof(struct value) * (CHUNK + 1));
+  Env->length = 0;
   Env->array[CHUNK] = make_memterm();
+}
 
 void dump_value(struct value v)
 {
@@ -120,7 +125,7 @@ void dump_stack(struct stack s)
 
 void dump_env(struct env env)
 {
-  printf("ENV (%lu): ", env.length);
+  printf("ENV (%lu)(%lu): ", env.length, GC_size(env.array));
   for (size_t i = 0; i < env.length; i++)
   {
     printf("%d, ", env.array[i].value.integer);
@@ -131,8 +136,8 @@ void dump_env(struct env env)
 void push(struct stack *s, struct value value)
 {
   // メモリが足りなくなったら+CHUNK
-  // s->currにすでにepsilonが入っていたらメモリ不足
-  if (s->curr->tag == EPSILON) {
+  // s->currにすでにmemtermが入っていたらメモリ不足
+  if (s->curr->tag == MEMTERM) {
     ptrdiff_t diff = s->curr - s->base;
     s->base = realloc(s->base, (diff + CHUNK + 1) * sizeof(struct value));
     s->curr = s->base + diff;
@@ -160,7 +165,7 @@ struct value pop(struct stack *s)
 
 void push_env(struct env *env, struct value value)
 {
-  if (env->array[env->length].tag == EPSILON )
+  if (env->array[env->length].tag == MEMTERM)
   {
     env->array = GC_REALLOC(env->array, sizeof(struct value) * env->length + CHUNK + 1);
     env->array[env->length + CHUNK] = make_memterm();
@@ -172,8 +177,8 @@ void push_env(struct env *env, struct value value)
 void ldi(int val)
 {
   struct value value = {
-      .value = {.integer = val},
-      .tag = INTEGER,
+    .value = {.integer = val},
+    .tag = INTEGER,
   };
   push(ArgStack, value);
 }
@@ -185,12 +190,13 @@ void access(size_t i)
 
 struct env copy_env(struct env old)
 {
-  // TODO: old.lengthをMAX(old.length, CHUNK)に置き換え
-  struct env new_env = {.array = GC_MALLOC(old.length * sizeof(struct value)), .length = old.length,};
-  // epsilonまでコピーしたいのでi <= old.length
-  for (size_t i = 0; i <= old.length; i++)
+  struct env new_env;
+  new_env.array = GC_MALLOC((CHUNK + 1) * sizeof(struct value));
+  new_env.length = 0;
+  new_env.array[CHUNK] = make_memterm();
+  for (size_t i = 0; i < old.length; i++)
   {
-    new_env.array[i] = old.array[i];
+    push_env(&new_env, old.array[i]);
   }
   return new_env;
 }
@@ -198,13 +204,13 @@ struct env copy_env(struct env old)
 struct value new_closure(Code *f, struct env env)
 {
   struct value c = {
-      .value = {
-          .clos = {
-              .entry = f,
-              .env = copy_env(env),
-          },
+    .value = {
+      .clos = {
+        .entry = f,
+        .env = copy_env(env),
       },
-      .tag = CLOSURE,
+    },
+    .tag = CLOSURE,
   };
   return c;
 }
@@ -243,8 +249,8 @@ void add(void)
   int n1 = pop(ArgStack).value.integer;
   int n2 = pop(ArgStack).value.integer;
   struct value n3 = {
-      .value = {.integer = n1 + n2},
-      .tag = INTEGER,
+    .value = {.integer = n1 + n2},
+    .tag = INTEGER,
   };
   push(ArgStack, n3);
 }
@@ -254,8 +260,8 @@ void eq(void)
   int n1 = pop(ArgStack).value.integer;
   int n2 = pop(ArgStack).value.integer;
   struct value n3 = {
-      .value = {.integer = n1 == n2},
-      .tag = INTEGER,
+    .value = {.integer = n1 == n2},
+    .tag = INTEGER,
   };
   push(ArgStack, n3);
 }
@@ -263,16 +269,16 @@ void eq(void)
 void make_block(uint_fast8_t tag, size_t len) {
   struct value ret =
     {
-     .tag = BLOCK,
-     .value =
-     {
-      .block =
+      .tag = BLOCK,
+      .value =
       {
-       .vec = GC_MALLOC(sizeof(struct value) * len),
-       .len = len,
-       .tag = tag,
+        .block =
+        {
+          .vec = GC_MALLOC(sizeof(struct value) * len),
+          .len = len,
+          .tag = tag,
+        },
       },
-     },
     };
   for (size_t i = 0; i < len; i++) {
     ret.value.block.vec[i] = pop(ArgStack);
@@ -305,7 +311,11 @@ void apply(void)
   save.tag = RETURN;
   push(RetStack, save);
 
-  *Env = closure.value.clos.env;
+  /* printf("apply: "); */
+  /* dump_stack(*RetStack); */
+  /* printf("\n"); */
+
+  *Env = copy_env(closure.value.clos.env);
 
   push_env(Env, closure);
   push_env(Env, val);
@@ -317,10 +327,16 @@ void tail_apply(void)
 {
   struct value closure = pop(ArgStack);
   struct value val = pop(ArgStack);
-  *Env = closure.value.clos.env;
+  *Env = copy_env(closure.value.clos.env);
 
   push_env(Env, closure);
   push_env(Env, val);
+
+  /* printf("tail apply\n"); */
+  /* dump_stack(*ArgStack); */
+  /* printf("\n"); */
+  /* dump_env(*Env); */
+  /* printf("%lu %lu %lu\n\n", GC_get_gc_no(), GC_get_heap_size(), GC_get_free_bytes()); */
 
   closure.value.clos.entry();
 }
@@ -342,6 +358,11 @@ void grab(Code *cont)
   if (v.tag == EPSILON)
   {
     struct value ret = pop(RetStack);
+
+    /* printf("grab: "); */
+    /* dump_stack(*RetStack); */
+    /* printf("\n"); */
+
     struct value v = new_closure(cont, *Env);
 
     *Env = ret.value.clos.env;
@@ -350,6 +371,7 @@ void grab(Code *cont)
   else
   {
     struct value closure = new_closure(cont, *Env);
+    *Env = copy_env(closure.value.clos.env);
     push_env(Env, closure);
     push_env(Env, v);
     cont();
@@ -364,11 +386,16 @@ void return_clos(void)
   if (y.tag == EPSILON)
   {
     *Env = pop(RetStack).value.clos.env;
+
+    /* printf("return_clos: "); */
+    /* dump_stack(*RetStack); */
+    /* printf("\n"); */
+
     push(ArgStack, x);
   }
   else
   {
-    *Env = x.value.clos.env;
+    *Env = copy_env(x.value.clos.env);
     push_env(Env, x);
     push_env(Env, y);
   }
@@ -411,7 +438,9 @@ void entry(void)
   let();
   push_mark();
   ldi(0);
-  ldi(10000);
+  ldi(100000);
+  /* dump_stack(*ArgStack); */
+  /* printf("\n"); */
   access(0);
   apply();
   endlet();
@@ -465,11 +494,10 @@ int main()
 {
   GC_INIT();
 
-  STACK_INIT();
+  stack_init();
+  env_init();
 
-  ENV_INIT();
-
-  /* entry(); // 50005000 */
+  entry(); // 50005000
   /* block_test_entry(); // simple invoke test */
-  cons_entry(); // list
+  // cons_entry(); // list
 }
