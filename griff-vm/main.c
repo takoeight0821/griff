@@ -1,6 +1,4 @@
-#define GC_DEBUG
 #include <stdlib.h>
-#include <setjmp.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <gc.h>
@@ -16,12 +14,14 @@ struct env
 
 typedef void*(Code)(void);
 
-#define INTEGER 0
-#define EPSILON 1
-#define CLOSURE 2
-#define RETURN 3
-#define BLOCK 4
-#define MEMTERM 5
+enum value_tag {
+  INTEGER,
+  EPSILON,
+  CLOSURE,
+  RETURN,
+  BLOCK,
+  MEMTERM,
+};
 
 struct value
 {
@@ -34,12 +34,12 @@ struct value
     } clos;
     struct
     {
+      uint8_t tag;
       struct value* vec;
       size_t len;
-      uint_fast8_t tag;
     } block;
   } value;
-  uint_fast8_t tag;
+  enum value_tag tag;
 };
 
 struct stack
@@ -58,8 +58,6 @@ struct value make_memterm() {
 
 #define CHUNK 16
 #define MARGIN (CHUNK * 2)
-
-
 void stack_init() {
   ArgStack = malloc(sizeof(struct stack));
   ArgStack->base = calloc(CHUNK + 1, sizeof(struct value));
@@ -144,23 +142,12 @@ void push(struct stack *s, struct value value)
     s->base[diff + CHUNK] = make_memterm();
   }
 
-  *s->curr = value;
-  s->curr++;
+  *s->curr++ = value;
 }
 
 struct value pop(struct stack *s)
 {
-  s->curr--;
-  /* // メモリがMARGIN余ったら-CHUNK */
-  /* if (s->size > MARGIN && s->curr - s->base < s->size - MARGIN - 1) */
-  /* { */
-  /*   s->size -= CHUNK; */
-  /*   ptrdiff_t diff = s->curr - s->base; */
-  /*   s->base = realloc(s->base, s->size * sizeof(struct value)); */
-  /*   s->curr = s->base + diff; */
-  /* } */
-
-  return *s->curr;
+  return *--s->curr;
 }
 
 void push_env(struct env *env, struct value value)
@@ -452,15 +439,13 @@ Code* entry(void)
   let();
   push_mark();
   ldi(0);
-  ldi(10);
+  ldi(100);
   access(0);
   return apply((Code*)end);
 }
 
 Code* invoke_test(void)
 {
-  struct value v = pop(ArgStack);
-  ldi(10);
   dump_stack(*ArgStack);
   exit(0);
 }
@@ -516,8 +501,8 @@ int main()
   GC_INIT();
 
   stack_init();
-  env_init();
 
+  env_init();
 
   Code* cont = (Code*)cons_entry;
   while (true) {
