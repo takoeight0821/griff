@@ -13,7 +13,7 @@ struct Code {
 
 impl std::fmt::Debug for Code {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Code")
+        std::fmt::Pointer::fmt(&(self.f as *const ()), f)
     }
 }
 
