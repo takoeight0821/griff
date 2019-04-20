@@ -109,8 +109,8 @@ impl Vm {
     }
 
     fn invoke(&mut self, tag: u8, c1: Code, c2: Code) -> Code {
-        if let Some(Value::Block { tag: tag1, vec: _ }) = self.arg_stack.pop() {
-            if tag == tag1 {
+        if let Some(Value::Block { tag: tag1, vec: _ }) = self.arg_stack.last() {
+            if tag == *tag1 {
                 c1
             } else {
                 c2
@@ -265,9 +265,37 @@ fn entry(vm: &mut Vm) -> Code {
     vm.apply(Code { f: end })
 }
 
+fn cons_entry(vm: &mut Vm) -> Code {
+    vm.make_block(0, 0);
+    vm.ldi(42);
+    vm.make_block(1, 2);
+    vm.invoke(0, Code { f: when_nil }, Code { f: next_nil })
+}
+
+fn when_nil(vm: &mut Vm) -> Code {
+    let v = vm.arg_stack.pop();
+    println!("{:?}", v);
+    std::process::exit(0)
+}
+
+fn next_nil(vm: &mut Vm) -> Code {
+    vm.invoke(1, Code { f: when_cons }, Code { f: when_fail })
+}
+
+fn when_cons(vm: &mut Vm) -> Code {
+    let v = vm.arg_stack.pop();
+    println!("{:?}", v);
+    std::process::exit(0);
+}
+
+fn when_fail(vm: &mut Vm) -> Code {
+    println!("{:?}", vm.arg_stack);
+    std::process::exit(1);
+}
+
 fn main() {
     let mut vm = Vm::new();
-    let mut cont = Code { f: entry };
+    let mut cont = Code { f: cons_entry };
 
     loop {
         cont = (cont.f)(&mut vm)
