@@ -7,15 +7,22 @@ import GHC.Generics
 
 type Code = [Instr]
 
+type Tag = Int
+
 data Instr = Ldi Integer
-           | Ldb Bool
            | Access Int
            | Closure Code
-           | Apply
-           | Return
            | Let
            | EndLet
            | Test Code Code
            | Add
            | Eq
+           | Block Tag Int
+           | Field Int
+           | Invoke Tag Code
+           | Apply
+           | TailApply
+           | PushMark
+           | Grab
+           | Return
   deriving (Show, Eq, Ord, Generic, Data)
