@@ -1,109 +1,54 @@
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
-{-# LANGUAGE Strict                     #-}
-{-# LANGUAGE StrictData                 #-}
 {-# LANGUAGE TemplateHaskell            #-}
 module Language.Griff.Vm where
 
-import           Control.Lens
-import           Control.Monad.Extra
-import           Control.Monad.Fail
-import           Control.Monad.State
-import qualified Data.Vector.Fixed   as V
+import           Language.Griff.Instr
 
-data Value = IntVal Integer
-           | BoolVal Bool
-           | ClosVal Code Env
+data Value = IntVal !Integer
+           | ClosVal !Code !Env
+           | BlockVal !Tag !Int ![Value]
+           | EpsilonVal
   deriving (Show, Eq, Ord)
 
 type Env = [Value]
 
 type Stack = [Value]
 
-type Code = [Instr]
+next :: Monad m => Instr -> Code -> [Value] -> [Value] -> [Value] -> m (Code, [Value], [Value], [Value])
+next (Ldi x) c e s r = return (c, e, IntVal x : s, r)
+next (Access i) c e s r = return (c, e, e !! i : s, r)
+next (Closure f) c e s r = return (c, e, ClosVal f e : s, r)
+next Let c e (x:s) r = return (c, x:e, s, r)
+next EndLet c (_:e) s r = return (c, e, s, r)
+next (Test t _) _ e (IntVal 1 : s) r = return (t, e, s, r)
+next (Test _ f) _ e (IntVal 0 : s) r = return (f, e, s, r)
+next Add c e (IntVal x : IntVal y : s) r = return (c, e, IntVal (x + y) : s, r)
+next Eq c e (IntVal x : IntVal y : s) r = return (c, e, IntVal (if x == y then 1 else 0) : s, r)
+next (Block tag arity) c e s r = do
+  let xs = take arity s
+  return (c, e, BlockVal tag arity xs : s, r)
+next (Field i) c e (BlockVal _ _ xs : s) r = return (c, e, xs !! i : s, r)
+next (Invoke tag k) c e s@((BlockVal tag' _ _) : _) r
+  | tag == tag' = return (k, e, s, r)
+  | otherwise = return (c, e, s, r)
+next Apply c e (ClosVal c' e' : v : s) r =
+  return (c', v : ClosVal c' e' : e', s, ClosVal c e : r)
+next TailApply _ _ (ClosVal c' e' : v : s) r =
+  return (c', v : ClosVal c' e' : e', s, r)
+next PushMark c e s r = return (c, e, EpsilonVal : s, r)
+next Grab c e (EpsilonVal : s) (ClosVal c' e' : r) =
+  return (c', e', ClosVal c e : s, r)
+next Grab c e (v : s) r = return (c, v : ClosVal c e : e, s, r)
+next Return _ _ (x : EpsilonVal : s) (ClosVal c' e' : r) =
+  return (c', e', x : s, r)
+next Return _ _ (ClosVal c' e' : v : s) r =
+  return (c', v : ClosVal c' e' : e', s, r)
+next _ _ _ _ _ = error "unreachable"
 
-data Instr = Ldi Integer
-           | Ldb Bool
-           | Access Int
-           | Closure Code
-           | Apply
-           | Return
-           | Let
-           | EndLet
-           | Test Code Code
-           | Add
-           | Eq
-  deriving (Show, Eq, Ord)
-
-data Ctx = Ctx { _codeL  :: Code
-               , _stackL :: Stack
-               , _envL   :: Env
-               }
-  deriving (Show, Eq, Ord)
-
-makeLenses ''Ctx
-
-newtype MachineT m a = MachineT (StateT Ctx m a)
-  deriving (Functor, Applicative, Monad, MonadIO, MonadState Ctx, MonadFail)
-
-runMachineT :: MachineT m a -> Ctx -> m (a, Ctx)
-runMachineT m =
-  runStateT $ m ^. coerced
-
-push :: MonadState Ctx m => Value -> m ()
-push x = stackL %= (x:)
-
-pop :: (MonadState Ctx m, MonadFail m) => m Value
-pop = do
-  (x : xs) <- use stackL
-  stackL .= xs
-  return x
-
-next :: (MonadState Ctx m, MonadFail m) => Instr -> m ()
-next (Ldi n) = push $ IntVal n
-next (Ldb b) = push $ BoolVal b
-next (Access i) = push . (!! i) =<< use envL
-next (Closure c) = push =<< ClosVal c <$> use envL
-next Apply = modifyCtx $ \code env (ClosVal code' env', v) -> (const code', const ([v, ClosVal code' env'] <> env'), [ClosVal code env])
-next Return = modifyCtx $ \_ _ (v, ClosVal code env) -> (const code, const env, [v])
-next Let = modifyCtx $ \_ _ (V.Only v) -> (id, (v:), [])
-next EndLet = envL %= tail
-next (Test c1 c2) =
-  modifyCtx $ \_ _ (V.Only (BoolVal b)) -> (if b then (c1 <>) else (c2 <>), id, [])
-next Add = calculate $ \(IntVal x, IntVal y) -> [IntVal $ x + y]
-next Eq = calculate $ \(IntVal x, IntVal y) -> [BoolVal $ x == y]
-
-calculate :: (MonadState Ctx m, V.Vector v Value, MonadFail m) => (v Value -> Stack) -> m ()
-calculate f = modifyCtx (\_ _ vs -> (id, id, f vs))
-
-modifyCtx :: (MonadState Ctx m, V.Vector v Value, MonadFail m) => (Code -> Env -> v Value -> (Code -> Code, Env -> Env, Stack)) -> m ()
-modifyCtx update = do
-  (updateCode, updateEnv, pushes) <-
-    update <$> use codeL <*> use envL <*> V.replicateM pop
-  codeL %= updateCode
-  envL %= updateEnv
-  stackL %= (pushes <>)
-
-eval :: (MonadState Ctx m, MonadFail m) => m ()
-eval = whileM $ do
-  cs <- use codeL
-  case cs of
-    [] -> return False
-    (instr : rest) -> do
-      codeL .= rest
-      next instr
-      return True
-
-test :: MonadFail m => m ((), Ctx)
-test = runMachineT eval $ Ctx
-  { _codeL =
-      [Closure [Ldi 1, Access 0, Eq,
-                Test
-                 [Ldi 1]
-                 [Ldi $ -1, Access 0, Add, Access 1, Apply, Access 0, Add],
-                Return],
-        Let, Ldi 100, Access 0, Apply, EndLet]
-  , _envL = []
-  , _stackL = []
-  }
+eval :: Monad m => Code -> [Value] -> [Value] -> [Value] -> m ([Value], [Value], [Value])
+eval [] e s r = return (e, s, r)
+eval (c:cs) e s r = do
+  (cs', e', s', r') <- next c cs e s r
+  eval cs' e' s' r'
