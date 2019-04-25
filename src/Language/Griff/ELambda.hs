@@ -19,9 +19,7 @@ data Exp = Const Constant
          | Lambda Pat Exp -- 引数をPatで分解する。Caseを使った式に変換される
          | Let Pat Exp Exp
          | LetRec Pat Exp Exp
-         | Else Exp Exp -- 最初のExpの結果がErrorなら2つ目のExpを実行する。Apply (Apply FatBar Exp) Expに変換される
          | Case Id [(Pat, Exp)]
-         | Error -- Errorを吐く
          | Prim Primitive
   deriving (Eq, Ord, Show, Generic, Data)
 

@@ -34,7 +34,7 @@ data Primitive = Add | Sub | Mul | Div | Mod -- Int
                | Eq | Neq -- Eq
                | Lt | Le | Gt | Ge -- Ord
                | And | Or -- Bool
-               | Sel Arity Int -- unwrap Constructor
+               | Select Int -- unwrap Constructor
                | Pack Tag Arity -- wrap Constructor
   deriving (Eq, Ord, Show, Generic, Data)
 
@@ -45,8 +45,8 @@ instance Outputable Primitive
 
 {Tag Arity}
 
-Nil -> {1 0}
-Cons -> {2 2}
+Nil -> {0 0}
+Cons -> {1 2}
 
-Pair -> {1 2}
+Pair -> {0 2}
 -}

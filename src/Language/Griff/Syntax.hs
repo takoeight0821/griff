@@ -17,7 +17,7 @@ data Exp a = Var SrcSpan a
            | String SrcSpan String
            | Constructor SrcSpan a
            | Apply SrcSpan (Exp a) (Exp a)
-           | Lambda SrcSpan (Pat a) (Exp a) (Exp a)
+           | Lambda SrcSpan (Pat a) (Exp a)
            | Let SrcSpan (Pat a) (Exp a) (Exp a)
            | LetRec SrcSpan [(Pat a, Exp a)] (Exp a)
            | Parens SrcSpan (Exp a)
