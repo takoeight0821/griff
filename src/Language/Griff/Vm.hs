@@ -4,6 +4,7 @@
 {-# LANGUAGE TemplateHaskell            #-}
 module Language.Griff.Vm where
 
+import           Control.Monad.IO.Class
 import           Language.Griff.Instr
 
 data Value = IntVal !Integer
@@ -16,7 +17,7 @@ type Env = [Value]
 
 type Stack = [Value]
 
-next :: Monad m => Instr -> Code -> [Value] -> [Value] -> [Value] -> m (Code, [Value], [Value], [Value])
+next :: MonadIO m => Instr -> Code -> [Value] -> [Value] -> [Value] -> m (Code, [Value], [Value], [Value])
 next (Ldi x) c e s r = return (c, e, IntVal x : s, r)
 next (Access i) c e s r = return (c, e, e !! i : s, r)
 next (Closure f) c e s r = return (c, e, ClosVal f e : s, r)
@@ -28,7 +29,7 @@ next Add c e (IntVal x : IntVal y : s) r = return (c, e, IntVal (x + y) : s, r)
 next Eq c e (IntVal x : IntVal y : s) r = return (c, e, IntVal (if x == y then 1 else 0) : s, r)
 next (Block tag arity) c e s r = do
   let xs = take arity s
-  return (c, e, BlockVal tag arity xs : s, r)
+  return (c, e, BlockVal tag arity xs : drop arity s, r)
 next (Field i) c e (BlockVal _ _ xs : s) r = return (c, e, xs !! i : s, r)
 next (Invoke tag k) c e s@((BlockVal tag' _ _) : _) r
   | tag == tag' = return (k, e, s, r)
@@ -45,10 +46,20 @@ next Return _ _ (x : EpsilonVal : s) (ClosVal c' e' : r) =
   return (c', e', x : s, r)
 next Return _ _ (ClosVal c' e' : v : s) r =
   return (c', v : ClosVal c' e' : e', s, r)
-next _ _ _ _ _ = error "unreachable"
+next c cs e s r = error $ "unreachable: " <> show (c, cs, e, s, r)
 
-eval :: Monad m => Code -> [Value] -> [Value] -> [Value] -> m ([Value], [Value], [Value])
+eval :: MonadIO m => Code -> [Value] -> [Value] -> [Value] -> m ([Value], [Value], [Value])
 eval [] e s r = return (e, s, r)
 eval (c:cs) e s r = do
+  -- liftIO $ do
+  --   putStr "Code: "
+  --   print (c:cs)
+  --   putStr "Env: "
+  --   print e
+  --   putStr "Stack: "
+  --   print s
+  --   putStr "Ret: "
+  --   print r
+  --   putStrLn ""
   (cs', e', s', r') <- next c cs e s r
   eval cs' e' s' r'
