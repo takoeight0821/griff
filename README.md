@@ -12,16 +12,16 @@
 
 ### Value
 
-Integer(int)
-Closure(code, env)
-Block(tag, size, array of value)
-Epsilon
+* Integer(int)
+* Closure(code, env)
+* Block(tag, size, array of value)
+* Epsilon
 
 ### Stacks
 
-ArgStack stack of arguments
-RetStack stack of return point
-Env      array of local environment
+* ArgStack stack of arguments
+* RetStack stack of return point
+* Env      array of local environment
 
 ### Instructions
 | INSTR        | cont | env   | stack                     | return      | cont' | env'             | stack'                           | return'    |
@@ -49,37 +49,37 @@ Env      array of local environment
 
 ### compile Lambda to Instr
 
-x, f: variable
-n: positive integer
-b: boolean
-c: character
-s: string
-C: constructor
-e: expr
-op: binop
+* x, f: variable
+* n: positive integer
+* b: boolean
+* c: character
+* s: string
+* C: constructor
+* e: expr
+* op: binop
 
-C(x, env) = Access (position x env)
-C(n, env) = Ldi n
-C(b, env) = if b then Ldi 1 else Ldi 0
-C(c, env) = Ldi (ord c)
-C(s, env) = _
-C(e e1 .. eN, env) = PushMark; C(eN, env); ...; C(e1, env); C(e, env); Apply
-C(fun x -> e, env) = Grab; T(e, x:_:env)
-C(let x = e1 in e2, env) = C(e1, env); Let; C(e2, x:env); EndLet
-C(let rec f x = e1 in e2, env) = Closure T(e1, x:f:env); Let; C(e2, f:env); EndLet
-C(e1 op e2, env) = C(e2, env); C(e1, env); COp(op)
-C(Sel n e, env) = C(e, env); Field n
-C(Pack tag n, env) = Block tag n
+* C(x, env) = Access (position x env)
+* C(n, env) = Ldi n
+* C(b, env) = if b then Ldi 1 else Ldi 0
+* C(c, env) = Ldi (ord c)
+* C(s, env) = _
+* C(e e1 .. eN, env) = PushMark; C(eN, env); ...; C(e1, env); C(e, env); Apply
+* C(fun x -> e, env) = Grab; T(e, x:_:env)
+* C(let x = e1 in e2, env) = C(e1, env); Let; C(e2, x:env); EndLet
+* C(let rec f x = e1 in e2, env) = Closure T(e1, x:f:env); Let; C(e2, f:env); EndLet
+* C(e1 op e2, env) = C(e2, env); C(e1, env); COp(op)
+* C(Sel n e, env) = C(e, env); Field n
+* C(Pack tag n, env) = Block tag n
 
-T(x, env) = Access (position x env); Return
-T(n, env) = Ldi n; Return
-T(b, env) = if b then Ldi 1 else Ldi 0; Return
-T(c, env) = Ldi (ord c); Return
-T(s, env) = _; Return
-T(e e1 .. eN, env) = C(eN, env); ...; C(e1, env); C(e, env); TailApply
-T(fun x -> e, env) = Grab; T(e, x:_:env)
-T(let x = e1 in e2, env) = C(e1, env); Let; T(e2, x:env)
-T(let rec f x = e1 in e2, env) = Closure T(e1, x:f:env); Let; T(e2, f:env)
-T(e1 op e2, env) = C(e2, env); C(e1, env); COp(op); Return
-T(Sel n e, env) = C(e, env); Field n; Return
-T(Pack tag n, env) = Block tag n; Return
+* T(x, env) = Access (position x env); Return
+* T(n, env) = Ldi n; Return
+* T(b, env) = if b then Ldi 1 else Ldi 0; Return
+* T(c, env) = Ldi (ord c); Return
+* T(s, env) = _; Return
+* T(e e1 .. eN, env) = C(eN, env); ...; C(e1, env); C(e, env); TailApply
+* T(fun x -> e, env) = Grab; T(e, x:_:env)
+* T(let x = e1 in e2, env) = C(e1, env); Let; T(e2, x:env)
+* T(let rec f x = e1 in e2, env) = Closure T(e1, x:f:env); Let; T(e2, f:env)
+* T(e1 op e2, env) = C(e2, env); C(e1, env); COp(op); Return
+* T(Sel n e, env) = C(e, env); Field n; Return
+* T(Pack tag n, env) = Block tag n; Return
