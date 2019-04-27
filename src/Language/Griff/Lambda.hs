@@ -22,24 +22,24 @@ data Exp = Const Constant
          | Lambda Id Exp
          | Let Id Exp Exp
          | LetRec Id Exp Exp
-         | Prim Primitive
+         | Op Op Exp Exp
+         | Select Int Exp
+         | Pack Tag [Exp]
          | If Exp Exp Exp -- constantに対するcaseはifに変換
          | Switch Id [(Tag, Exp)] -- sum typeのconstructorに対するcaseはswitchに変換
   deriving (Eq, Ord, Show, Generic, Data)
 
 instance Plated Exp
 
-data Primitive = Add | Sub | Mul | Div | Mod -- Int
-               | FAdd | FSub | FMul | FDiv -- Float
-               | Eq | Neq -- Eq
-               | Lt | Le | Gt | Ge -- Ord
-               | And | Or -- Bool
-               | Select Int -- unwrap Constructor
-               | Pack Tag Arity -- wrap Constructor
+data Op = Add | Sub | Mul | Div | Mod -- Int
+        | FAdd | FSub | FMul | FDiv -- Float
+        | Eq | Neq -- Eq
+        | Lt | Le | Gt | Ge -- Ord
+        | And | Or -- Bool
   deriving (Eq, Ord, Show, Generic, Data)
 
 instance Outputable Exp
-instance Outputable Primitive
+instance Outputable Op
 
 {- コンストラクタの表現
 
