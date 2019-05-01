@@ -51,15 +51,5 @@ next c cs e s r = error $ "unreachable: " <> show (c, cs, e, s, r)
 eval :: MonadIO m => Code -> [Value] -> [Value] -> [Value] -> m ([Value], [Value], [Value])
 eval [] e s r = return (e, s, r)
 eval (c:cs) e s r = do
-  -- liftIO $ do
-  --   putStr "Code: "
-  --   print (c:cs)
-  --   putStr "Env: "
-  --   print e
-  --   putStr "Stack: "
-  --   print s
-  --   putStr "Ret: "
-  --   print r
-  --   putStrLn ""
   (cs', e', s', r') <- next c cs e s r
   eval cs' e' s' r'

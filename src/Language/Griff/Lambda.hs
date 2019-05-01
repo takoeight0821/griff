@@ -1,8 +1,9 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric      #-}
+{-# LANGUAGE OverloadedStrings  #-}
 module Language.Griff.Lambda where
 
-import           Control.Lens
+import           Control.Lens hiding (Const)
 import           Data.Data
 import           Data.Outputable
 import           GHC.Generics
@@ -50,3 +51,18 @@ Cons -> {1 2}
 
 Pair -> {0 2}
 -}
+
+
+example1 :: Exp
+example1 =
+  LetRec sum (Lambda x (Lambda acc
+                        (If (Op Eq (Var x) (Const $ Int 0))
+                          (Var acc)
+                          (Apply
+                           (Apply (Var sum) (Op Add (Var x) (Const $ Int (-1))))
+                            (Op Add (Var acc) (Var x))))))
+  (Apply (Apply (Var sum) (Const $ Int 10)) (Const $ Int 0))
+  where
+    sum = Id "sum" 0
+    x = Id "x" 1
+    acc = Id "acc" 2
