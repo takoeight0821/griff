@@ -34,7 +34,7 @@ data Primitive = Add | Sub | Mul | Div | Mod -- Int
 
 data Pat = VarP Id
          | ConstantP Constant
-         | ConstructorP Id [Pat]
+         | ConstructorP Id [Id]
   deriving (Eq, Ord, Show, Generic, Data)
 
 instance Outputable Exp
