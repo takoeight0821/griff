@@ -17,6 +17,9 @@ type Tag = Int
 -- constructorのarity
 type Arity = Int
 
+defaultTag :: Tag
+defaultTag = -1 -- tag for default clause
+
 data Exp = Const Constant
          | Var Id
          | Apply Exp Exp
