@@ -25,6 +25,10 @@ match (u:us) [((VarP _ x):ps, e)] cont = do
 match (u:us) [((ConstructorP ss conName subPats):ps, e)] cont = do
   (_, arity) <- lookupCons conName
   subUs <- replicateM arity (newId "u")
+
+  when (length subUs /= length subPats) $
+    error "the length of subUs and subPats must be equal"
+
   match (subUs <> us) [((subPats <> ps),
                         Case ss (Var ss u) [(ConstructorP ss conName (map (VarP ss) subUs), e)]
                          cont)] cont
