@@ -25,6 +25,7 @@ data Exp a = Var SrcSpan a
            | Parens SrcSpan (Exp a)
            | BinOp SrcSpan Op (Exp a) (Exp a)
            | Case SrcSpan (Exp a) [(Pat a, Exp a)] (Exp a)
+           | If SrcSpan (Exp a) (Exp a) (Exp a)
            | Error
   deriving (Eq, Ord, Show, Generic, Data)
 
