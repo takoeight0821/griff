@@ -4,13 +4,14 @@
 {-# LANGUAGE TypeApplications  #-}
 module Language.Griff.E2L where
 
-import           Capability.State
 import           Control.Monad
-import qualified Language.Griff.ELambda as E
+import           Language.Griff.ConsTable
+import qualified Language.Griff.ELambda   as E
 import           Language.Griff.Id
 import           Language.Griff.Lambda
+import           Language.Griff.Uniq
 
-compile :: (HasState "consTable" [(Id, (Tag, Int))] f, HasState "uniq" Int f) => E.Exp -> f Exp
+compile :: (HasConsTable f, HasUniq f) => E.Exp -> f Exp
 compile (E.Const c) = return $ Const c
 compile (E.Var x)   = return $ Var x
 compile e@E.Apply{} = compileApply e []
@@ -48,7 +49,7 @@ compile (E.Prim p) = do
     $ Lambda y
     $ Op (compilePrim p) (Var x) (Var y)
 
-compileSwitch :: (HasState "consTable" [(Id, (Tag, Int))] f, HasState "uniq" Int f) => Id -> [(E.Pat, E.Exp)] -> f [(Tag, Exp)]
+compileSwitch :: (HasConsTable m, HasUniq m) => Id -> [(E.Pat, E.Exp)] -> m [(Tag, Exp)]
 compileSwitch _ [] = return []
 compileSwitch x ((E.ConstructorP c vs, e) : xs) = do
   (tag, _) <- lookupCons c
@@ -62,14 +63,7 @@ compileSwitch x ((E.VarP x', e) : _) = do
   return [(defaultTag, Let x' (Var x) e')]
 compileSwitch _ _ = error "illegal pattern(case switch)"
 
-lookupCons :: (HasState "consTable" [(Id, (Tag, Int))] m) => Id -> m (Tag, Int)
-lookupCons c = do
-  table <- get @"consTable"
-  case lookup c table of
-    Just x  -> return x
-    Nothing -> error $ show c <> " is not found"
-
-compileApply :: (HasState "consTable" [(Id, (Tag, Int))] f, HasState "uniq" Int f) => E.Exp -> [Exp] -> f Exp
+compileApply :: (HasConsTable m, HasUniq m) => E.Exp -> [Exp] -> m Exp
 compileApply (E.Prim p) [y, x] =
   return $ Op (compilePrim p) x y
 compileApply E.Prim{} _ =

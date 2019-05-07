@@ -3,19 +3,20 @@
 {-# LANGUAGE OverloadedStrings  #-}
 module Language.Griff.Lambda where
 
-import           Control.Lens hiding (Const)
+import           Control.Lens             hiding (Const)
 import           Data.Data
 import           Data.Outputable
 import           GHC.Generics
+import           Language.Griff.ConsTable
 import           Language.Griff.Constant
 import           Language.Griff.Id
 
 -- Lambda Calculus
 
--- sum typeをtagで区別する
-type Tag = Int
--- constructorのarity
-type Arity = Int
+-- -- sum typeをtagで区別する
+-- type Tag = Int
+-- -- constructorのarity
+-- type Arity = Int
 
 defaultTag :: Tag
 defaultTag = -1 -- tag for default clause

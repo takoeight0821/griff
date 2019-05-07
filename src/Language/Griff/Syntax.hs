@@ -1,10 +1,12 @@
 {-# LANGUAGE DataKinds          #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveFoldable     #-}
 {-# LANGUAGE DeriveGeneric      #-}
 {-# LANGUAGE EmptyDataDeriving  #-}
 {-# LANGUAGE KindSignatures     #-}
 module Language.Griff.Syntax where
 
+import           Control.Lens.Plated
 import           Data.Data
 import           Data.Outputable
 import           GHC.Generics
@@ -22,10 +24,14 @@ data Exp a = Var SrcSpan a
            | LetRec SrcSpan [(Pat a, Exp a)] (Exp a)
            | Parens SrcSpan (Exp a)
            | BinOp SrcSpan Op (Exp a) (Exp a)
-           | Case SrcSpan (Exp a) [(Pat a, Exp a)]
+           | Case SrcSpan (Exp a) [(Pat a, Exp a)] (Exp a)
+           | Error
   deriving (Eq, Ord, Show, Generic, Data)
 
+-- Caseの最後の引数は、どのパターンにもマッチしなかったときに実行される(パース時は大抵Error)
+
 instance Outputable a => Outputable (Exp a)
+instance Data a => Plated (Exp a)
 
 data Op = Add | Sub | Mul | Div | Mod | FAdd | FSub | FMul | FDiv | Eq | Neq | Lt | Le | Gt | Ge | And | Or
   deriving (Eq, Ord, Show, Generic, Data)
@@ -38,7 +44,7 @@ data Pat a = VarP SrcSpan a
            | CharP SrcSpan Char
            | StringP SrcSpan String
            | ConstructorP SrcSpan a [Pat a]
-  deriving (Eq, Ord, Show, Generic, Data)
+  deriving (Eq, Ord, Show, Generic, Data, Foldable)
 
 instance Outputable a => Outputable (Pat a)
 

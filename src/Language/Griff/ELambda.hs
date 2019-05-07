@@ -1,8 +1,9 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric      #-}
+{-# LANGUAGE OverloadedStrings  #-}
 module Language.Griff.ELambda where
 
-import           Control.Lens
+import           Control.Lens            hiding (Const)
 import           Data.Data
 import           Data.Outputable
 import           GHC.Generics
@@ -40,3 +41,28 @@ data Pat = VarP Id
 instance Outputable Exp
 instance Outputable Primitive
 instance Outputable Pat
+
+elambdaExample :: Exp
+elambdaExample =
+  LetRec (VarP sum)
+  (Lambda (VarP x)
+   (Lambda (VarP acc)
+    (Let (VarP b) (Apply (Apply (Prim Eq) (Var x))
+                   (Const $ Int 0))
+     (Case b
+      [ (ConstructorP true [], Var acc)
+      , (ConstructorP false [], Apply (Apply (Var sum) (Apply (Apply (Prim Add) (Var x)) (Const $ Int (-1)))) (Apply (Apply (Prim Add) (Var acc)) (Var x)))]))))
+  (Apply (Apply (Var sum) (Const $ Int 10)) (Const $ Int 0))
+  where
+    sum = Id "sum" 0
+    x = Id "x" 1
+    acc = Id "acc" 2
+    true = Id "True" 3
+    false = Id "False" 4
+    b = Id "b" 5
+
+elambdaEnvExample :: [(Id, (Int, Int))]
+elambdaEnvExample =
+  [ (Id "True" 3, (0, 0))
+  , (Id "False" 4, (1, 0))
+  ]
