@@ -29,8 +29,9 @@ match (u:us) [((ConstructorP ss conName subPats):ps, e)] cont = do
   when (length subUs /= length subPats) $
     error "the length of subUs and subPats must be equal"
 
-  match (subUs <> us) [((subPats <> ps),
-                        Case ss (Var ss u) [(ConstructorP ss conName (map (VarP ss) subUs), e)]
+  match (subUs <> us) [(subPats <> ps,
+                        Case ss (Var ss u)
+                         [(ConstructorP ss conName (map (VarP ss) subUs), e)]
                          cont)] cont
 match (u:us) [((IntP ss i):ps, e)] cont =
   match us [(ps, If ss (BinOp ss Eq (Var ss u) (Int ss i)) e cont)] cont

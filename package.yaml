@@ -24,14 +24,15 @@ dependencies:
 - capability
 - containers
 - extra
-- reflection
 - fixed-vector
 - lens
-- megaparsec
 - mtl
 - operational
 - outputable
+- parsec
 - prettyprinter
+- reflection
+- s-cargot
 - text
 
 ghc-options:
@@ -63,3 +64,5 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - griff
+    - hspec
+    - hspec-discover
