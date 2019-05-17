@@ -6,10 +6,11 @@
 
 struct value;
 
-struct env
+struct stack
 {
-  struct value *array;
-  size_t length;
+  struct value *ptr;
+  size_t capacity;
+  size_t len;
 };
 
 typedef void*(Code)(void);
@@ -20,7 +21,6 @@ enum value_tag {
   CLOSURE,
   RETURN,
   BLOCK,
-  MEMTERM,
 };
 
 struct value
@@ -30,7 +30,7 @@ struct value
     struct
     {
       Code *entry;
-      struct env env;
+      struct stack env;
     } clos;
     struct
     {
@@ -38,54 +38,42 @@ struct value
       struct value* vec;
       size_t len;
     } block;
-  } value;
+  };
   enum value_tag tag;
-};
-
-struct stack
-{
-  struct value *base;
-  struct value *curr;
 };
 
 struct stack *ArgStack;
 struct stack *RetStack;
 
-struct value make_memterm() {
-  struct value e = {.tag = MEMTERM };
-  return e;
-}
-
 #define CHUNK 16
-#define MARGIN (CHUNK * 2)
 void stack_init() {
   ArgStack = malloc(sizeof(struct stack));
-  ArgStack->base = calloc(CHUNK + 1, sizeof(struct value));
-  ArgStack->curr = ArgStack->base;
-  ArgStack->base[CHUNK] = make_memterm();
+  ArgStack->ptr = calloc(CHUNK, sizeof(struct value));
+  ArgStack->capacity = CHUNK;
+  ArgStack->len = 0;
   RetStack = malloc(sizeof(struct stack));
-  RetStack->base = calloc(CHUNK + 1, sizeof(struct value));
-  RetStack->curr = RetStack->base;
-  RetStack->base[CHUNK] = make_memterm();
+  RetStack->ptr = calloc(CHUNK, sizeof(struct value));
+  RetStack->capacity = CHUNK;
+  RetStack->len = 0;
 }
 
-struct env *Env;
+struct stack *Env;
 
 void env_init() {
-  Env = malloc(sizeof(struct env));
-  Env->array = GC_MALLOC(sizeof(struct value) * (CHUNK + 1));
-  Env->length = 0;
-  Env->array[CHUNK] = make_memterm();
+  Env = malloc(sizeof(struct stack));
+  Env->ptr = calloc(CHUNK, sizeof(struct value));
+  Env->capacity = CHUNK;
+  Env->len = 0;
 }
 
 void dump_value(struct value v)
 {
   switch (v.tag) {
   case INTEGER:
-    printf("%d", v.value.integer);
+    printf("%d", v.integer);
     break;
   case CLOSURE:
-    printf("%p", v.value.clos.entry);
+    printf("%p", v.clos.entry);
     break;
   case RETURN:
     printf("ret");
@@ -94,11 +82,11 @@ void dump_value(struct value v)
     printf("epsilon");
     break;
   case BLOCK:
-    printf("(%d ", v.value.block.tag);
-    for (size_t i = 0; i < v.value.block.len; i++) {
+    printf("(%d ", v.block.tag);
+    for (size_t i = 0; i < v.block.len; i++) {
       if (i != 0)
         printf(", ");
-      dump_value(v.value.block.vec[i]);
+      dump_value(v.block.vec[i]);
     }
     printf(")");
     break;
@@ -111,60 +99,51 @@ void dump_stack(struct stack s)
 {
   printf("STACK [");
 
-  for (size_t i = 0; i < s.curr - s.base; i++)
+  for (size_t i = 0; i < s.len; i++)
   {
     if (i != 0)
       printf(", ");
-    dump_value(s.base[i]);
+    dump_value(s.ptr[i]);
   }
 
   printf("]");
 }
 
-void dump_env(struct env env)
+void dump_env(struct stack env)
 {
-  printf("ENV (%lu)(%lu): ", env.length, GC_size(env.array));
-  for (size_t i = 0; i < env.length; i++)
+  printf("ENV (%lu)(%lu): ", env.len, GC_size(env.ptr));
+  for (size_t i = 0; i < env.len; i++)
   {
-    printf("%d, ", env.array[i].value.integer);
+    printf("%d, ", env.ptr[i].integer);
   }
   printf("\n");
 }
 
 void push(struct stack *s, struct value value)
 {
-  // メモリが足りなくなったら+CHUNK
-  // s->currにすでにmemtermが入っていたらメモリ不足
-  if (s->curr->tag == MEMTERM) {
-    ptrdiff_t diff = s->curr - s->base;
-    s->base = realloc(s->base, (diff + CHUNK + 1) * sizeof(struct value));
-    s->curr = s->base + diff;
-    s->base[diff + CHUNK] = make_memterm();
+  // メモリが足りなくなったらcapacity*2
+  if (s->len >= s->capacity) {
+    s->capacity *= 2;
+    s->ptr = realloc(s->ptr, s->capacity * sizeof(struct value));
   }
 
-  *s->curr++ = value;
+  s->ptr[s->len++] = value;
 }
 
 struct value pop(struct stack *s)
 {
-  return *--s->curr;
+  return s->ptr[--s->len];
 }
 
-void push_env(struct env *env, struct value value)
+void push_env(struct stack *env, struct value value)
 {
-  if (env->array[env->length].tag == MEMTERM)
-  {
-    env->array = GC_REALLOC(env->array, sizeof(struct value) * env->length + CHUNK + 1);
-    env->array[env->length + CHUNK] = make_memterm();
-  }
-  env->array[env->length] = value;
-  env->length++;
+  push(env, value);
 }
 
 void ldi(int val)
 {
   struct value value = {
-    .value = {.integer = val},
+    .integer = val,
     .tag = INTEGER,
   };
   push(ArgStack, value);
@@ -172,30 +151,28 @@ void ldi(int val)
 
 void access(size_t i)
 {
-  push(ArgStack, Env->array[Env->length - i - 1]);
+  push(ArgStack, Env->ptr[Env->len - i - 1]);
 }
 
-struct env copy_env(struct env old)
+struct stack copy_env(struct stack old)
 {
-  struct env new_env;
-  new_env.array = GC_MALLOC((CHUNK + 1) * sizeof(struct value));
-  new_env.length = 0;
-  new_env.array[CHUNK] = make_memterm();
-  for (size_t i = 0; i < old.length; i++)
+  struct stack new_env;
+  new_env.ptr = GC_MALLOC(CHUNK * sizeof(struct value));
+  new_env.capacity = CHUNK;
+  new_env.len = 0;
+  for (size_t i = 0; i < old.len; i++)
   {
-    push_env(&new_env, old.array[i]);
+    push_env(&new_env, old.ptr[i]);
   }
   return new_env;
 }
 
-struct value new_closure(Code *f, struct env env)
+struct value new_closure(Code *f, struct stack env)
 {
   struct value c = {
-    .value = {
-      .clos = {
-        .entry = f,
-        .env = copy_env(env),
-      },
+    .clos = {
+      .entry = f,
+      .env = copy_env(env),
     },
     .tag = CLOSURE,
   };
@@ -216,12 +193,12 @@ void let(void)
 
 void endlet(void)
 {
-  Env->length--;
+  Env->len--;
 }
 
 Code* test(Code *c1, Code *c2)
 {
-  if (pop(ArgStack).value.integer)
+  if (pop(ArgStack).integer)
   {
     return c1;
   }
@@ -233,10 +210,10 @@ Code* test(Code *c1, Code *c2)
 
 void add(void)
 {
-  int n1 = pop(ArgStack).value.integer;
-  int n2 = pop(ArgStack).value.integer;
+  int n1 = pop(ArgStack).integer;
+  int n2 = pop(ArgStack).integer;
   struct value n3 = {
-    .value = {.integer = n1 + n2},
+    .integer = n1 + n2,
     .tag = INTEGER,
   };
   push(ArgStack, n3);
@@ -244,10 +221,10 @@ void add(void)
 
 void eq(void)
 {
-  int n1 = pop(ArgStack).value.integer;
-  int n2 = pop(ArgStack).value.integer;
+  int n1 = pop(ArgStack).integer;
+  int n2 = pop(ArgStack).integer;
   struct value n3 = {
-    .value = {.integer = n1 == n2},
+    .integer = n1 == n2,
     .tag = INTEGER,
   };
   push(ArgStack, n3);
@@ -257,18 +234,15 @@ void make_block(uint_fast8_t tag, size_t len) {
   struct value ret =
     {
       .tag = BLOCK,
-      .value =
+      .block =
       {
-        .block =
-        {
-          .vec = GC_MALLOC(sizeof(struct value) * len),
-          .len = len,
-          .tag = tag,
-        },
+        .vec = GC_MALLOC(sizeof(struct value) * len),
+        .len = len,
+        .tag = tag,
       },
     };
   for (size_t i = 0; i < len; i++) {
-    ret.value.block.vec[i] = pop(ArgStack);
+    ret.block.vec[i] = pop(ArgStack);
   }
   push(ArgStack, ret);
 }
@@ -276,15 +250,16 @@ void make_block(uint_fast8_t tag, size_t len) {
 void field(size_t i)
 {
   struct value block = pop(ArgStack);
-  push(ArgStack, block.value.block.vec[i]);
+  push(ArgStack, block.block.vec[i]);
 }
 
 struct value peek(struct stack s) {
-  return *(s.curr - 1);
+  // return last item
+  return s.ptr[s.len - 1];
 }
 
 Code* invoke(uint_fast8_t tag, Code* cont1, Code* cont2) {
-  if (peek(*ArgStack).value.block.tag == tag) {
+  if (peek(*ArgStack).block.tag == tag) {
     return cont1;
   } else {
     return cont2;
@@ -304,19 +279,19 @@ Code* apply(Code* cont)
   /* dump_stack(*RetStack); */
   /* printf("\n"); */
 
-  *Env = copy_env(closure.value.clos.env);
+  *Env = copy_env(closure.clos.env);
 
   push_env(Env, closure);
   push_env(Env, val);
 
-  return closure.value.clos.entry;
+  return closure.clos.entry;
 }
 
 Code* tail_apply(void)
 {
   struct value closure = pop(ArgStack);
   struct value val = pop(ArgStack);
-  *Env = copy_env(closure.value.clos.env);
+  *Env = copy_env(closure.clos.env);
 
   push_env(Env, closure);
   push_env(Env, val);
@@ -327,7 +302,7 @@ Code* tail_apply(void)
   /* dump_env(*Env); */
   /* printf("%lu %lu %lu\n\n", GC_get_gc_no(), GC_get_heap_size(), GC_get_free_bytes()); */
 
-  return closure.value.clos.entry;
+  return closure.clos.entry;
 }
 
 struct value make_epsilon() {
@@ -354,14 +329,14 @@ Code* grab(Code *cont)
 
     struct value v = new_closure(cont, *Env);
 
-    *Env = ret.value.clos.env;
+    *Env = ret.clos.env;
     push(ArgStack, v);
-    return ret.value.clos.entry;
+    return ret.clos.entry;
   }
   else
   {
     struct value closure = new_closure(cont, *Env);
-    *Env = copy_env(closure.value.clos.env);
+    *Env = copy_env(closure.clos.env);
     push_env(Env, closure);
     push_env(Env, v);
     return cont;
@@ -376,21 +351,16 @@ Code* return_clos(void)
   if (y.tag == EPSILON)
   {
     struct value ret = pop(RetStack);
-    *Env = ret.value.clos.env;
-
-    /* printf("return_clos: "); */
-    /* dump_stack(*RetStack); */
-    /* printf("\n"); */
-
+    *Env = ret.clos.env;
     push(ArgStack, x);
-    return ret.value.clos.entry;
+    return ret.clos.entry;
   }
   else
   {
-    *Env = copy_env(x.value.clos.env);
+    *Env = copy_env(x.clos.env);
     push_env(Env, x);
     push_env(Env, y);
-    return x.value.clos.entry;
+    return x.clos.entry;
   }
 }
 
@@ -427,9 +397,7 @@ Code* f(void)
 
 Code* end(void) {
   endlet();
-
   dump_stack(*ArgStack);
-
   exit(0);
 }
 
