@@ -17,12 +17,12 @@ match :: (HasConsTable m, HasUniq m)
   -> [([Pat Id], Exp Id)] -- ^ pattern clauses
   -> Exp Id -- ^ expr when failed
   -> m (Exp Id)
-match (u:us) [((VarP _ x):ps, e)] cont = do
+match (u:us) [(VarP _ x:ps, e)] cont =
   match us [( ps
             , rewrite (\case { Var ss y | x == y -> Just (Var ss u)
                              ; _ -> Nothing}) e
             )] cont
-match (u:us) [((ConstructorP ss conName subPats):ps, e)] cont = do
+match (u:us) [(ConstructorP ss conName subPats:ps, e)] cont = do
   (_, arity) <- lookupCons conName
   subUs <- replicateM arity (newId "u")
 
@@ -33,13 +33,13 @@ match (u:us) [((ConstructorP ss conName subPats):ps, e)] cont = do
                         Case ss (Var ss u)
                          [(ConstructorP ss conName (map (VarP ss) subUs), e)]
                          cont)] cont
-match (u:us) [((IntP ss i):ps, e)] cont =
+match (u:us) [(IntP ss i:ps, e)] cont =
   match us [(ps, If ss (BinOp ss Eq (Var ss u) (Int ss i)) e cont)] cont
-match (u:us) [((BoolP ss b):ps, e)] cont =
+match (u:us) [(BoolP ss b:ps, e)] cont =
   match us [(ps, If ss (BinOp ss Eq (Var ss u) (Bool ss b)) e cont)] cont
-match (u:us) [((CharP ss c):ps, e)] cont =
+match (u:us) [(CharP ss c:ps, e)] cont =
   match us [(ps, If ss (BinOp ss Eq (Var ss u) (Char ss c)) e cont)] cont
-match (u:us) [((StringP ss s):ps, e)] cont =
+match (u:us) [(StringP ss s:ps, e)] cont =
   match us [(ps, If ss (BinOp ss Eq (Var ss u) (String ss s)) e cont)] cont
 match [] [([], e)] _ = return e -- empty rule
 match [] _ _ = error "the length of ps must be 0"

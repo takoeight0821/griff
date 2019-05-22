@@ -26,7 +26,7 @@ data Exp a = Var SrcSpan a
            | BinOp SrcSpan Op (Exp a) (Exp a)
            | Case SrcSpan (Exp a) [(Pat a, Exp a)] (Exp a)
            | If SrcSpan (Exp a) (Exp a) (Exp a)
-           | Error
+           | Error String
   deriving (Eq, Ord, Show, Generic, Data)
 
 -- Caseの最後の引数は、どのパターンにもマッチしなかったときに実行される(パース時は大抵Error)
@@ -51,7 +51,7 @@ instance Outputable a => Outputable (Pat a)
 
 data Dec a = ScAnn SrcSpan a (Type a)
            | ScDef SrcSpan a (Exp a)
-           | TypeDef SrcSpan a [a] [(a, Type a)]
+           | TypeDef SrcSpan a [a] [Type a]
   deriving (Eq, Ord, Show, Generic, Data)
 
 instance Outputable a => Outputable (Dec a)
