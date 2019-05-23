@@ -25,6 +25,7 @@ dependencies:
 - containers
 - extra
 - fixed-vector
+- generic-lens
 - lens
 - mtl
 - operational

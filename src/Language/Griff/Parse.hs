@@ -1,60 +1,46 @@
--- |
--- = Griffの文法
--- == 変数
--- \[a-zA-Z_][a-zA-Z0-9_]*
---
--- == 整数
--- (\+\-)[0-9]+
---
--- == 真偽値
--- True False
---
--- == 文字
--- \'a\', \'あ\'
---
--- == 文字列
--- "hello, world"
---
--- == コンストラクタ
--- Some 1, None (大文字スタート)
---
--- == 関数適用
--- (f x y z) (= (((f x) y) z))
--- (Some 1)
---
--- == 無名関数
--- (fn (x y) (+ x y)) = (fn (x) (fn (y) (+ x y)))
---
--- == 変数束縛
--- (let x 1 (= x 1))
--- (let (Some x) o (+ x 1))
---
--- == 再帰変数束縛
--- (letrec f (fn (x) (if (= x 0)
---                     Nil
---                     (Cons x (f (- x 1)))))
---  (f 10))
---
--- == case
--- (case obj
---   (Cons x xs) x
---   Nil (error "not found"))
---
--- == if
--- (if True x y)
---
--- == uncatchable runtime error
--- (error msg)
---
--- == annotation
--- (: f t)
---
--- == definition
--- (def f e)
---
--- == type definition
--- (type (List a)
---   Nil
---   (Cons a (List a)))
+{-# LANGUAGE DataKinds         #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications  #-}
 
 module Language.Griff.Parse where
+
+import           Capability.Reader
+import           Control.Applicative
+import           Data.SCargot
+import           Data.SCargot.Atom
+import           Data.SCargot.Comments
+import           Data.SCargot.Common
+import           Data.SCargot.Repr
+import           Data.SCargot.Repr.WellFormed
+import           Data.Text                    (Text, pack)
+import           Language.Griff.Monad
+import           Language.Griff.SrcSpan
+import           Language.Griff.Syntax
+import           Text.Parsec                  hiding ((<|>))
+
+import           Text.Parsec.Text             (Parser)
+
+data Atom = Symbol Text
+          | IntL Integer
+          | Operator Text
+  deriving (Eq, Ord, Show)
+
+atomParser :: Parser (Located Atom)
+atomParser = located $
+  atom Symbol parseXIDIdentGeneral
+  <|> atom Operator (pack <$> string ":")
+  <|> atom IntL signedDecNumber
+
+parser :: SExprParser (Located Atom) (WellFormedSExpr (Located Atom))
+parser = setCarrier toWellFormed $ withLispComments $ mkParser atomParser
+
+parse :: Text -> Either String [WellFormedSExpr (Located Atom)]
+parse = decode parser
+
+toSrcSpan :: Monad m => Location -> GriffT m SrcSpan
+toSrcSpan (Span start end) = do
+  fileName <- ask @"fileName"
+  return $ SrcSpan fileName (sourceLine start) (sourceColumn start) (sourceLine end) (sourceColumn end)
+
+toSyntax :: Monad m => [WellFormedSExpr (Located Atom)] -> GriffT m [Dec Text]
+toSyntax (L [A (At loc (Operator ":")), A (At _ (Symbol f)), e] : xs) = undefined

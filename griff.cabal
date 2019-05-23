@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 131e5164df4311d20ca0a93870e83ee6fb8d6654563789faa9fda86476b77653
+-- hash: f0d179141c7d8691db4a6ea8a3ea007972dc276df751fd9991f2672bcf4a4be9
 
 name:           griff
 version:        0.1.0.0
@@ -54,6 +54,7 @@ library
     , containers
     , extra
     , fixed-vector
+    , generic-lens
     , lens
     , mtl
     , operational
@@ -78,6 +79,7 @@ executable griff-exe
     , containers
     , extra
     , fixed-vector
+    , generic-lens
     , griff
     , lens
     , mtl
@@ -105,6 +107,7 @@ test-suite griff-test
     , containers
     , extra
     , fixed-vector
+    , generic-lens
     , griff
     , hspec
     , hspec-discover
