@@ -28,13 +28,11 @@ dependencies:
 - generic-lens
 - lens
 - mtl
-- operational
 - outputable
-- parsec
 - prettyprinter
 - reflection
-- s-cargot
 - text
+- megaparsec
 
 ghc-options:
 - -Wall

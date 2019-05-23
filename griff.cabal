@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: f0d179141c7d8691db4a6ea8a3ea007972dc276df751fd9991f2672bcf4a4be9
+-- hash: 2ad8ea8036a800476b9f029b29444d5a75e31bb6e1fee3fe71c52d48c29015e0
 
 name:           griff
 version:        0.1.0.0
@@ -38,7 +38,7 @@ library
       Language.Griff.Lambda
       Language.Griff.Match
       Language.Griff.Monad
-      Language.Griff.Parse
+      Language.Griff.Parser
       Language.Griff.SrcSpan
       Language.Griff.Syntax
       Language.Griff.Uniq
@@ -56,13 +56,11 @@ library
     , fixed-vector
     , generic-lens
     , lens
+    , megaparsec
     , mtl
-    , operational
     , outputable
-    , parsec
     , prettyprinter
     , reflection
-    , s-cargot
     , text
   default-language: Haskell2010
 
@@ -82,13 +80,11 @@ executable griff-exe
     , generic-lens
     , griff
     , lens
+    , megaparsec
     , mtl
-    , operational
     , outputable
-    , parsec
     , prettyprinter
     , reflection
-    , s-cargot
     , text
   default-language: Haskell2010
 
@@ -112,12 +108,10 @@ test-suite griff-test
     , hspec
     , hspec-discover
     , lens
+    , megaparsec
     , mtl
-    , operational
     , outputable
-    , parsec
     , prettyprinter
     , reflection
-    , s-cargot
     , text
   default-language: Haskell2010
