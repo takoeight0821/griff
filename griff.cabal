@@ -1,0 +1,123 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.31.1.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: f0d179141c7d8691db4a6ea8a3ea007972dc276df751fd9991f2672bcf4a4be9
+
+name:           griff
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/takoeight0821/griff#readme>
+homepage:       https://github.com/takoeight0821/griff#readme
+bug-reports:    https://github.com/takoeight0821/griff/issues
+author:         Yuya Kono
+maintainer:     takohati0821@gmail.com
+copyright:      2019 Yuya Kono
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    ChangeLog.md
+
+source-repository head
+  type: git
+  location: https://github.com/takoeight0821/griff
+
+library
+  exposed-modules:
+      Language.Griff.Compile
+      Language.Griff.ConsTable
+      Language.Griff.Constant
+      Language.Griff.E2L
+      Language.Griff.ELambda
+      Language.Griff.Id
+      Language.Griff.Instr
+      Language.Griff.L2I
+      Language.Griff.Lambda
+      Language.Griff.Match
+      Language.Griff.Monad
+      Language.Griff.Parse
+      Language.Griff.SrcSpan
+      Language.Griff.Syntax
+      Language.Griff.Uniq
+      Language.Griff.Vm
+  other-modules:
+      Paths_griff
+  hs-source-dirs:
+      src
+  ghc-options: -Wall -fwarn-tabs -fwarn-incomplete-record-updates
+  build-depends:
+      base >=4.7 && <5
+    , capability
+    , containers
+    , extra
+    , fixed-vector
+    , generic-lens
+    , lens
+    , mtl
+    , operational
+    , outputable
+    , parsec
+    , prettyprinter
+    , reflection
+    , s-cargot
+    , text
+  default-language: Haskell2010
+
+executable griff-exe
+  main-is: Main.hs
+  other-modules:
+      Paths_griff
+  hs-source-dirs:
+      app
+  ghc-options: -Wall -fwarn-tabs -fwarn-incomplete-record-updates -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , capability
+    , containers
+    , extra
+    , fixed-vector
+    , generic-lens
+    , griff
+    , lens
+    , mtl
+    , operational
+    , outputable
+    , parsec
+    , prettyprinter
+    , reflection
+    , s-cargot
+    , text
+  default-language: Haskell2010
+
+test-suite griff-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Language.Griff.L2ISpec
+      Paths_griff
+  hs-source-dirs:
+      test
+  ghc-options: -Wall -fwarn-tabs -fwarn-incomplete-record-updates -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , capability
+    , containers
+    , extra
+    , fixed-vector
+    , generic-lens
+    , griff
+    , hspec
+    , hspec-discover
+    , lens
+    , mtl
+    , operational
+    , outputable
+    , parsec
+    , prettyprinter
+    , reflection
+    , s-cargot
+    , text
+  default-language: Haskell2010
