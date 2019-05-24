@@ -35,8 +35,6 @@ match (u:us) [(ConstructorP ss conName subPats:ps, e)] cont = do
                          cont)] cont
 match (u:us) [(IntP ss i:ps, e)] cont =
   match us [(ps, If ss (BinOp ss Eq (Var ss u) (Int ss i)) e cont)] cont
-match (u:us) [(BoolP ss b:ps, e)] cont =
-  match us [(ps, If ss (BinOp ss Eq (Var ss u) (Bool ss b)) e cont)] cont
 match (u:us) [(CharP ss c:ps, e)] cont =
   match us [(ps, If ss (BinOp ss Eq (Var ss u) (Char ss c)) e cont)] cont
 match (u:us) [(StringP ss s:ps, e)] cont =

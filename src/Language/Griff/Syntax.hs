@@ -20,7 +20,6 @@ instance Outputable SourcePos
 
 data Exp a = Var SourcePos a
            | Int SourcePos Integer
-           | Bool SourcePos Bool
            | Char SourcePos Char
            | String SourcePos Text
            | Constructor SourcePos a
@@ -47,7 +46,6 @@ instance Outputable Op
 
 data Pat a = VarP SourcePos a
            | IntP SourcePos Integer
-           | BoolP SourcePos Bool
            | CharP SourcePos Char
            | StringP SourcePos Text
            | ConstructorP SourcePos a [Pat a]

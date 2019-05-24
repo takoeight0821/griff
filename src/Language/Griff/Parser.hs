@@ -66,11 +66,6 @@ pVariable =
 pInteger :: Parser (Exp Text)
 pInteger = Int <$> getSourcePos <*> signedInteger
 
--- pBool :: Parser (Exp Text)
--- pBool = Bool <$> getSourcePos
---   <*> ((pKeyword "True" >> return True)
---        <|> (pKeyword "False" >> return False))
-
 pChar :: Parser (Exp Text)
 pChar = Char <$> getSourcePos <*> charLiteral
 

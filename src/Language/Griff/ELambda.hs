@@ -13,6 +13,9 @@ import           Language.Griff.Id
 -- Enriched Lambda Calculus
 -- 『The Implementation of Functional Programming Language』
 
+data Sc = Sc Id [Id] Exp
+  deriving (Eq, Ord, Show, Generic, Data)
+
 data Exp = Const Constant
          | Var Id
          | Constructor Id
