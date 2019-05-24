@@ -6,6 +6,7 @@ module Language.Griff.ELambda where
 import           Control.Lens            hiding (Const)
 import           Data.Data
 import           Data.Outputable
+import           Data.Text               (Text)
 import           GHC.Generics
 import           Language.Griff.Constant
 import           Language.Griff.Id
@@ -20,10 +21,11 @@ data Exp = Const Constant
          | Var Id
          | Constructor Id
          | Apply Exp Exp
-         | Lambda Pat Exp -- 引数をPatで分解する。Caseを使った式に変換される
-         | Let Pat Exp Exp
-         | LetRec Pat Exp Exp
+         | Lambda Id Exp -- 引数をPatで分解する。Caseを使った式に変換される
+         | Let Id Exp Exp
+         | LetRec [(Id, Exp)] Exp
          | Case Id [(Pat, Exp)]
+         | Error Text
          | Prim Primitive
   deriving (Eq, Ord, Show, Generic, Data)
 
@@ -41,20 +43,21 @@ data Pat = VarP Id
          | ConstructorP Id [Id]
   deriving (Eq, Ord, Show, Generic, Data)
 
+instance Outputable Sc
 instance Outputable Exp
 instance Outputable Primitive
 instance Outputable Pat
 
 elambdaExample :: Exp
 elambdaExample =
-  LetRec (VarP sum)
-  (Lambda (VarP x)
-   (Lambda (VarP acc)
-    (Let (VarP b) (Apply (Apply (Prim Eq) (Var x))
-                   (Const $ Int 0))
+  LetRec [(sum,
+  Lambda x
+   (Lambda acc
+    (Let b (Apply (Apply (Prim Eq) (Var x))
+             (Const $ Int 0))
      (Case b
       [ (ConstructorP true [], Var acc)
-      , (ConstructorP false [], Apply (Apply (Var sum) (Apply (Apply (Prim Add) (Var x)) (Const $ Int (-1)))) (Apply (Apply (Prim Add) (Var acc)) (Var x)))]))))
+      , (ConstructorP false [], Apply (Apply (Var sum) (Apply (Apply (Prim Add) (Var x)) (Const $ Int (-1)))) (Apply (Apply (Prim Add) (Var acc)) (Var x)))]))))]
   (Apply (Apply (Var sum) (Const $ Int 10)) (Const $ Int 0))
   where
     sum = Id "sum" 0

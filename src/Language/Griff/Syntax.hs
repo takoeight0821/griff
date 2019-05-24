@@ -24,14 +24,14 @@ data Exp a = Var SourcePos a
            | String SourcePos Text
            | Constructor SourcePos a
            | Apply SourcePos (Exp a) (Exp a)
-           | Lambda SourcePos (Pat a) (Exp a)
-           | Let SourcePos (Pat a) (Exp a) (Exp a)
-           | LetRec SourcePos [(Pat a, Exp a)] (Exp a)
+           | Lambda SourcePos a (Exp a)
+           | Let SourcePos a (Exp a) (Exp a)
+           | LetRec SourcePos [(a, Exp a)] (Exp a)
            -- -- | Parens SourcePos (Exp a)
            | BinOp SourcePos Op (Exp a) (Exp a)
            | Case SourcePos (Exp a) [(Pat a, Exp a)] (Exp a)
            | If SourcePos (Exp a) (Exp a) (Exp a)
-           | Error SourcePos String
+           | Error SourcePos Text
   deriving (Eq, Ord, Show, Generic, Data)
 
 -- Caseの最後の引数は、どのパターンにもマッチしなかったときに実行される(パース時は大抵Error)
@@ -54,7 +54,7 @@ data Pat a = VarP SourcePos a
 instance Outputable a => Outputable (Pat a)
 
 data Dec a = ScAnn SourcePos a (Type a)
-           | ScDef SourcePos a (Exp a)
+           | ScDef SourcePos a [a] (Exp a)
            | TypeDef SourcePos a [a] [Type a]
   deriving (Eq, Ord, Show, Generic, Data)
 

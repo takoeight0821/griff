@@ -19,21 +19,13 @@ compile (E.Constructor c) = do
   (tag, arity) <- lookupCons c
   xs <- replicateM arity (newId "v")
   return $ foldr Lambda (Pack tag (map Var xs)) xs
-compile (E.Lambda (E.VarP x) e) =
+compile (E.Lambda x e) =
   Lambda x <$> compile e
-compile (E.Lambda p e) = do
-  x <- newId "_lambda_pat"
-  Lambda x <$> compile (wrapCase x p e)
-compile (E.Let (E.VarP x) e1 e2) =
+compile (E.Let x e1 e2) =
   Let x <$> compile e1 <*> compile e2
-compile (E.Let p e1 e2) =  do
-  x <- newId "_let_pat"
-  Let x <$> compile e1 <*> compile (wrapCase x p e2)
-compile (E.LetRec (E.VarP x) e1 e2) =
+compile (E.LetRec [(x, e1)] e2) =
   LetRec x <$> compile e1 <*> compile e2
-compile (E.LetRec p e1 e2) = do
-  x <- newId "_letrec_pat"
-  LetRec x <$> compile (wrapCase x p e1) <*> compile (wrapCase x p e2)
+compile (E.LetRec _ _) = error "Lambda.Exp must be closure converted"
 compile (E.Case x cs@((E.ConstructorP{}, _) : _)) =
   Switch x <$> compileSwitch x cs
 compile (E.Case x ((E.VarP x', e) : _)) =
@@ -48,6 +40,7 @@ compile (E.Prim p) = do
     $ Lambda x
     $ Lambda y
     $ Op (compilePrim p) (Var x) (Var y)
+compile (E.Error msg) = return $ Error msg
 
 compileSwitch :: (HasConsTable m, HasUniq m) => Id -> [(E.Pat, E.Exp)] -> m [(Tag, Exp)]
 compileSwitch _ [] = return []

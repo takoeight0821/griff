@@ -6,6 +6,7 @@ module Language.Griff.Lambda where
 import           Control.Lens             hiding (Const)
 import           Data.Data
 import           Data.Outputable
+import           Data.Text                (Text)
 import           GHC.Generics
 import           Language.Griff.ConsTable
 import           Language.Griff.Constant
@@ -21,6 +22,9 @@ import           Language.Griff.Id
 defaultTag :: Tag
 defaultTag = -1 -- tag for default clause
 
+data Sc = Sc Id [Id] Exp
+  deriving (Eq, Ord, Show, Generic, Data)
+
 data Exp = Const Constant
          | Var Id
          | Apply Exp Exp
@@ -32,6 +36,7 @@ data Exp = Const Constant
          | Pack Tag [Exp]
          | If Exp Exp Exp -- constantに対するcaseはifに変換
          | Switch Id [(Tag, Exp)] -- sum typeのconstructorに対するcaseはswitchに変換
+         | Error Text
   deriving (Eq, Ord, Show, Generic, Data)
 
 instance Plated Exp
@@ -43,6 +48,7 @@ data Op = Add | Sub | Mul | Div | Mod -- Int
         | And | Or -- Bool
   deriving (Eq, Ord, Show, Generic, Data)
 
+instance Outputable Sc
 instance Outputable Exp
 instance Outputable Op
 
@@ -55,7 +61,6 @@ Cons -> {1 2}
 
 Pair -> {0 2}
 -}
-
 
 example1 :: Exp
 example1 =
