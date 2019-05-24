@@ -36,7 +36,6 @@ data Exp = Const Constant
          | Pack Tag [Exp]
          | If Exp Exp Exp -- constantに対するcaseはifに変換
          | Switch Id [(Tag, Exp)] -- sum typeのconstructorに対するcaseはswitchに変換
-         | Error Text
   deriving (Eq, Ord, Show, Generic, Data)
 
 instance Plated Exp

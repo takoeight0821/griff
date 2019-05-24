@@ -40,7 +40,6 @@ compile (E.Prim p) = do
     $ Lambda x
     $ Lambda y
     $ Op (compilePrim p) (Var x) (Var y)
-compile (E.Error msg) = return $ Error msg
 
 compileSwitch :: (HasConsTable m, HasUniq m) => Id -> [(E.Pat, E.Exp)] -> m [(Tag, Exp)]
 compileSwitch _ [] = return []

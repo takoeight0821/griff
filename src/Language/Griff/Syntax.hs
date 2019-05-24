@@ -27,14 +27,10 @@ data Exp a = Var SourcePos a
            | Lambda SourcePos a (Exp a)
            | Let SourcePos a (Exp a) (Exp a)
            | LetRec SourcePos [(a, Exp a)] (Exp a)
-           -- -- | Parens SourcePos (Exp a)
            | BinOp SourcePos Op (Exp a) (Exp a)
-           | Case SourcePos (Exp a) [(Pat a, Exp a)] (Exp a)
+           | Case SourcePos (Exp a) [(Pat a, Exp a)]
            | If SourcePos (Exp a) (Exp a) (Exp a)
-           | Error SourcePos Text
   deriving (Eq, Ord, Show, Generic, Data)
-
--- Caseの最後の引数は、どのパターンにもマッチしなかったときに実行される(パース時は大抵Error)
 
 instance Outputable a => Outputable (Exp a)
 instance Data a => Plated (Exp a)

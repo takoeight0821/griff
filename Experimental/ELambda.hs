@@ -25,7 +25,6 @@ data Exp = Const Constant
          | Let Id Exp Exp
          | LetRec [(Id, Exp)] Exp
          | Case Id [(Pat, Exp)]
-         | Error Text
          | Prim Primitive
   deriving (Eq, Ord, Show, Generic, Data)
 
