@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Language.Griff.Parser where
 
+import           Control.Monad
 import           Data.Text                  (Text, pack)
 import           Data.Void
 import           Language.Griff.Syntax
@@ -44,9 +45,7 @@ pKeyword :: Text -> Parser Text
 pKeyword keyword = lexeme (string keyword <* notFollowedBy alphaNumChar)
 
 reserved :: Parser ()
-reserved = try (pKeyword "let")
-           <|> try (pKeyword "in")
-  >> return ()
+reserved = void $ choice $ map (try . pKeyword) ["let", "in", "fn", "->", "="]
 
 lowerIdent :: Parser Text
 lowerIdent = do
@@ -74,3 +73,50 @@ pString = String <$> getSourcePos <*> stringLiteral
 
 pConstructor :: Parser (Exp Text)
 pConstructor = Constructor <$> getSourcePos <*> lexeme upperIdent
+
+pApply :: Parser (Exp Text)
+pApply = do
+  s <- getSourcePos
+  f <- pSingleExp
+  xs <- many pSingleExp
+  return $ build s f xs
+  where
+    build _ f [] = f
+    build s f (x : xs) = build s (Apply s f x) xs
+
+pLambda :: Parser (Exp Text)
+pLambda = do
+  s <- getSourcePos
+  _<- pKeyword "fn"
+  x <- lexeme lowerIdent
+  xs <- many $ lexeme lowerIdent
+  _ <- pKeyword "->"
+  e <- pExp
+  return $ Lambda s x $ foldr (Lambda s) e xs
+
+pLet :: Parser (Exp Text)
+pLet = do
+  s <- getSourcePos
+  _ <- pKeyword "let"
+  x <- lexeme lowerIdent
+  _ <- pKeyword "="
+  v <- lexeme pExp
+  _ <- pKeyword "in"
+  e <- lexeme pExp
+  return $ Let s x v e
+
+parens :: Parser a -> Parser a
+parens = between (symbol "(") (symbol ")")
+
+pSingleExp :: Parser (Exp Text)
+pSingleExp = pVariable
+  <|> pInteger
+  <|> pChar
+  <|> pString
+  <|> parens pExp
+
+pExp :: Parser (Exp Text)
+pExp = try pApply
+       <|> pLambda
+       <|> try pLet
+       <|> pSingleExp

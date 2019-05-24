@@ -21,6 +21,22 @@ sum lst =
     | Nil -> 0
     | Cons x xs = x + sum xs
 
+sumAcc lst =
+  let rec go lst acc =
+    case lst of
+    | Nil -> acc
+    | Cons x xs -> go xs (x + acc)
+  in go lst 0
+
+evenOdd x =
+  let rec even x =
+    if x == 0 then True
+    else odd (x - 1)
+  and odd x =
+    if x == 0 then False
+    else even (x - 1)
+  in (even x, odd x)
+
 type Option a = None | Some a
 
 safeHead : List a -> Option a
