@@ -45,7 +45,7 @@ pKeyword :: Text -> Parser Text
 pKeyword keyword = lexeme (string keyword <* notFollowedBy alphaNumChar)
 
 reserved :: Parser ()
-reserved = void $ choice $ map (try . pKeyword) ["let", "in", "fn", "->", "="]
+reserved = void $ choice $ map (try . pKeyword) ["let", "in", "and", "fn", "->", "="]
 
 lowerIdent :: Parser Text
 lowerIdent = do
@@ -102,8 +102,25 @@ pLet = do
   _ <- pKeyword "="
   v <- lexeme pExp
   _ <- pKeyword "in"
-  e <- lexeme pExp
-  return $ Let s x v e
+  Let s x v <$> pExp
+
+pLetRec :: Parser (Exp Text)
+pLetRec = do
+  s <- getSourcePos
+  _ <- pKeyword "let"
+  _ <- pKeyword "rec"
+  f <- pdef
+  fs <- many (pKeyword "and" >> pdef)
+  _ <- pKeyword "in"
+  LetRec s (f:fs) <$> pExp
+  where
+    pdef = do
+      s <- getSourcePos
+      f <- lexeme lowerIdent
+      xs <- many $ lexeme lowerIdent
+      _ <- pKeyword "="
+      e1 <- pExp
+      return (f, foldr (Lambda s) e1 xs)
 
 parens :: Parser a -> Parser a
 parens = between (symbol "(") (symbol ")")
