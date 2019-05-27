@@ -25,8 +25,8 @@ data Exp a = Var SourcePos a
            | Constructor SourcePos a
            | Apply SourcePos (Exp a) (Exp a)
            | Lambda SourcePos a (Exp a)
-           | Let SourcePos a (Exp a) (Exp a)
-           | LetRec SourcePos [(a, Exp a)] (Exp a)
+           | Let SourcePos a [a] (Exp a) (Exp a)
+           | LetRec SourcePos [(a, [a], Exp a)] (Exp a)
            | BinOp SourcePos Op (Exp a) (Exp a)
            | Case SourcePos (Exp a) [(Pat a, Exp a)]
            | If SourcePos (Exp a) (Exp a) (Exp a)

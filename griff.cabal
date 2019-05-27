@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: ed74f32ce81875b2796a2742f9bd59dc5aaf98666be8aea3e559e060178ec327
+-- hash: dcd0e6b487f46000e7c047cd1835c3b4e041ca8b61d4f3866480f21c0b2a6098
 
 name:           griff
 version:        0.1.0.0
@@ -49,6 +49,7 @@ library
     , megaparsec
     , mtl
     , outputable
+    , parser-combinators
     , prettyprinter
     , reflection
     , text
@@ -73,6 +74,7 @@ executable griff-exe
     , megaparsec
     , mtl
     , outputable
+    , parser-combinators
     , prettyprinter
     , reflection
     , text
@@ -101,6 +103,7 @@ test-suite griff-test
     , megaparsec
     , mtl
     , outputable
+    , parser-combinators
     , prettyprinter
     , reflection
     , text

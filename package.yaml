@@ -25,6 +25,7 @@ dependencies:
 - containers
 - extra
 - fixed-vector
+- parser-combinators
 - generic-lens
 - lens
 - mtl
