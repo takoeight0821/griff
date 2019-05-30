@@ -42,11 +42,17 @@ signedInteger = L.signed sc integer
 signedFloat :: Parser Double
 signedFloat = L.signed sc float
 
-pKeyword :: Text -> Parser Text
-pKeyword keyword = lexeme (string keyword <* notFollowedBy alphaNumChar)
+pKeyword :: Text -> Parser ()
+pKeyword keyword = void $ lexeme (string keyword <* notFollowedBy alphaNumChar)
+
+opLetter :: Parser Char
+opLetter = oneOf ("+-*/%=><:;|&" :: String)
+
+pOperator :: Text -> Parser ()
+pOperator op = void $ lexeme (string op <* notFollowedBy opLetter)
 
 reserved :: Parser ()
-reserved = void $ choice $ map (try . pKeyword) ["let", "in", "and", "rec", "fn", "->", "="]
+reserved = void $ choice $ map (try . pKeyword) ["let", "in", "and", "rec", "fn", "case", "of"]
 
 lowerIdent :: Parser Text
 lowerIdent = do
@@ -78,6 +84,7 @@ pConstructor = Constructor <$> getSourcePos <*> lexeme upperIdent <?> "construct
 
 pSingleExp :: Parser (Exp Text)
 pSingleExp = pVariable
+  <|> pConstructor
   <|> pInteger
   <|> pChar
   <|> pString
@@ -100,7 +107,7 @@ pLambda = label "lambda" $ do
   _<- pKeyword "fn"
   x <- lexeme lowerIdent
   xs <- many $ lexeme lowerIdent
-  _ <- pKeyword "->"
+  _ <- pOperator "->"
   e <- pExp
   return $ Lambda s x $ foldr (Lambda s) e xs
 
@@ -110,7 +117,7 @@ pLet = label "let" $ do
   _ <- pKeyword "let"
   f <- lexeme lowerIdent
   xs <- many (lexeme lowerIdent)
-  _ <- pKeyword "="
+  _ <- pOperator "="
   v <- lexeme pExp
   _ <- pKeyword "in"
   Let s f xs v <$> pExp
@@ -153,13 +160,37 @@ opTable = [
   , [ left "+" $ \s l h -> BinOp s Add l h
     , left "-" $ \s l h -> BinOp s Sub l h]
   ]
+  where
+    left name f = InfixL (getSourcePos >>= \s -> pOperator name >> return (f s))
+    neutral name f = InfixN (getSourcePos >>= \s -> pOperator name >> return (f s))
+    right name f = InfixR (getSourcePos >>= \s -> pOperator name >> return (f s))
+    prefix name f = Prefix (getSourcePos >>= \s -> pOperator name >> return (f s))
+    postfix name f = Postfix (getSourcePos >>= \s -> pOperator name >> return (f s))
 
-left name f = InfixL (getSourcePos >>= \s -> symbol name >> return (f s))
-neutral name f = InfixN (getSourcePos >>= \s -> symbol name >> return (f s))
-right name f = InfixR (getSourcePos >>= \s -> symbol name >> return (f s))
-prefix name f = Prefix (getSourcePos >>= \s -> symbol name >> return (f s))
-postfix name f = Postfix (getSourcePos >>= \s -> symbol name >> return (f s))
+pVarPat :: Parser (Pat Text)
+pVarPat = label "variable pattern" $ do
+  s <- getSourcePos
+  x <- lexeme lowerIdent
+  return $ VarP s x
 
+pPattern :: Parser (Pat Text)
+pPattern = pVarPat
+
+pCase :: Parser (Exp Text)
+pCase = label "case expression" $ do
+  s <- getSourcePos
+  _ <- pKeyword "case"
+  e <- pExp
+  _ <- pKeyword "of"
+  ps <- many clause
+  return $ Case s e ps
+  where
+    clause = do
+      _ <- pOperator "|"
+      pat <- pPattern
+      _ <- pOperator "->"
+      e <- pExp
+      return (pat, e)
 
 pExp :: Parser (Exp Text)
 pExp = try pBinOp
@@ -167,4 +198,5 @@ pExp = try pBinOp
        <|> pLambda
        <|> try pLet -- revert "let"
        <|> pLetRec
+       <|> pCase
        <|> pSingleExp
