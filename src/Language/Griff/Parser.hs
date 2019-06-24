@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Language.Griff.Parser (pExp) where
+module Language.Griff.Parser (pExp, pDec) where
 
 import           Control.Monad
 import           Control.Monad.Combinators.Expr
@@ -200,3 +200,16 @@ pExp = try pBinOp
        <|> pLetRec
        <|> pCase
        <|> pSingleExp
+
+pDec :: Parser (Dec Text)
+pDec = pScDef
+  -- TODO: TypeDefのパーサ
+
+pScDef :: Parser (Dec Text)
+pScDef = label "toplevel function definition" $ do
+  s <- getSourcePos
+  f <- lexeme lowerIdent
+  xs <- many (lexeme lowerIdent)
+  _ <- pOperator "="
+  v <- lexeme pExp
+  return $ ScDef s f xs v

@@ -43,6 +43,8 @@ extra-deps:
 - s-cargot-0.1.4.0
 - github: takoeight0821/outputable
   commit: 'b881db5'
+  size: 4511
+  sha256: ebb447aab0e225d9a31a4c8a56609ba7d44f82ca7def1398dabea2ae74032245
 
 # Override default flag values for local packages and extra-deps
 # flags: {}
