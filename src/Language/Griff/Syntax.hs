@@ -49,10 +49,13 @@ data Pat a = VarP SourcePos a
 
 instance Outputable a => Outputable (Pat a)
 
-data Dec a = ScAnn SourcePos a (Type a)
+data Dec a = ScSig SourcePos a (Type a)
            | ScDef SourcePos a [a] (Exp a)
-           | TypeDef SourcePos a [a] [(a, [Type a])]
+           | SumTypeDef SourcePos a [a] [ConstructorDef a]
+           | TypeAliasDef SourcePos a [a] (Type a)
   deriving (Eq, Ord, Show, Generic, Data)
+
+type ConstructorDef a = (a, [Type a])
 
 instance Outputable a => Outputable (Dec a)
 
