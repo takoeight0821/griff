@@ -55,19 +55,19 @@ reserved :: Parser ()
 reserved = void $ choice $ map (try . pKeyword) ["let", "in", "and", "rec", "fn", "case", "of"]
 
 lowerIdent :: Parser Text
-lowerIdent = do
+lowerIdent = lexeme $ do
   notFollowedBy reserved
   pack <$> ((:) <$> lowerChar <*> many alphaNumChar <?> "lower identifier")
 
 upperIdent :: Parser Text
-upperIdent = do
+upperIdent = lexeme $ do
   notFollowedBy reserved
   pack <$> ((:) <$> upperChar <*> many alphaNumChar <?> "upper identifier")
 
 pVariable :: Parser (Exp Text)
 pVariable =
   Var <$> getSourcePos
-  <*> lexeme lowerIdent
+  <*> lowerIdent
   <?> "variable"
 
 pInteger :: Parser (Exp Text)
@@ -80,7 +80,7 @@ pString :: Parser (Exp Text)
 pString = String <$> getSourcePos <*> stringLiteral <?> "string"
 
 pConstructor :: Parser (Exp Text)
-pConstructor = Constructor <$> getSourcePos <*> lexeme upperIdent <?> "constructor"
+pConstructor = Constructor <$> getSourcePos <*> upperIdent <?> "constructor"
 
 pSingleExp :: Parser (Exp Text)
 pSingleExp = pVariable
@@ -96,46 +96,43 @@ pApply = do
   f <- pSingleExp
   x <- pSingleExp
   xs <- many pSingleExp
-  return $ build s f (x:xs)
-  where
-    build _ f []       = f
-    build s f (x : xs) = build s (Apply s f x) xs
+  return $ foldl (Apply s) f (x:xs)
 
 pLambda :: Parser (Exp Text)
 pLambda = label "lambda" $ do
   s <- getSourcePos
-  _<- pKeyword "fn"
-  x <- lexeme lowerIdent
-  xs <- many $ lexeme lowerIdent
-  _ <- pOperator "->"
+  pKeyword "fn"
+  x <- lowerIdent
+  xs <- many lowerIdent
+  pOperator "->"
   e <- pExp
   return $ Lambda s x $ foldr (Lambda s) e xs
 
 pLet :: Parser (Exp Text)
 pLet = label "let" $ do
   s <- getSourcePos
-  _ <- pKeyword "let"
-  f <- lexeme lowerIdent
-  xs <- many (lexeme lowerIdent)
-  _ <- pOperator "="
-  v <- lexeme pExp
-  _ <- pKeyword "in"
+  pKeyword "let"
+  f <- lowerIdent
+  xs <- many lowerIdent
+  pOperator "="
+  v <- pExp
+  pKeyword "in"
   Let s f xs v <$> pExp
 
 pLetRec :: Parser (Exp Text)
 pLetRec = label "let rec" $ do
   s <- getSourcePos
-  _ <- pKeyword "let"
-  _ <- pKeyword "rec"
+  pKeyword "let"
+  pKeyword "rec"
   f <- pdef
   fs <- many (pKeyword "and" >> pdef)
-  _ <- pKeyword "in"
+  pKeyword "in"
   LetRec s (f:fs) <$> pExp
   where
     pdef = do
       f <- lexeme lowerIdent
       xs <- many $ lexeme lowerIdent
-      _ <- pKeyword "="
+      pKeyword "="
       e1 <- pExp
       return (f, xs, e1)
 
@@ -179,16 +176,16 @@ pPattern = pVarPat
 pCase :: Parser (Exp Text)
 pCase = label "case expression" $ do
   s <- getSourcePos
-  _ <- pKeyword "case"
+  pKeyword "case"
   e <- pExp
-  _ <- pKeyword "of"
+  pKeyword "of"
   ps <- many clause
   return $ Case s e ps
   where
     clause = do
-      _ <- pOperator "|"
+      pOperator "|"
       pat <- pPattern
-      _ <- pOperator "->"
+      pOperator "->"
       e <- pExp
       return (pat, e)
 
@@ -208,8 +205,8 @@ pDec = pScDef
 pScDef :: Parser (Dec Text)
 pScDef = label "toplevel function definition" $ do
   s <- getSourcePos
-  f <- lexeme lowerIdent
-  xs <- many (lexeme lowerIdent)
-  _ <- pOperator "="
-  v <- lexeme pExp
+  f <- lowerIdent
+  xs <- many lowerIdent
+  pOperator "="
+  v <- pExp
   return $ ScDef s f xs v
