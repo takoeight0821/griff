@@ -9,9 +9,9 @@ module Language.Griff.Syntax where
 import           Control.Lens.Plated
 import           Data.Data
 import           Data.Outputable
+import           Data.Text           (Text)
 import           GHC.Generics
 import           Text.Megaparsec.Pos
-import           Data.Text (Text)
 
 instance Outputable Pos where
   pprPrec i x = pprPrec i $ unPos x
