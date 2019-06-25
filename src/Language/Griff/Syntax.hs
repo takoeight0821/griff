@@ -51,7 +51,7 @@ instance Outputable a => Outputable (Pat a)
 
 data Dec a = ScAnn SourcePos a (Type a)
            | ScDef SourcePos a [a] (Exp a)
-           | TypeDef SourcePos a [a] [(a, Type a)]
+           | TypeDef SourcePos a [a] [(a, [Type a])]
   deriving (Eq, Ord, Show, Generic, Data)
 
 instance Outputable a => Outputable (Dec a)
