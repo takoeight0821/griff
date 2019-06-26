@@ -22,7 +22,9 @@ data Exp a = Var SourcePos a
            | Int SourcePos Integer
            | Char SourcePos Char
            | String SourcePos Text
-           | Constructor SourcePos a
+           | Record SourcePos [(Text, Exp a)]
+           | Proj SourcePos Text (Exp a)
+           | Ascribe SourcePos (Exp a) (Type a)
            | Apply SourcePos (Exp a) (Exp a)
            | Lambda SourcePos a (Exp a)
            | Let SourcePos a [a] (Exp a) (Exp a)
@@ -51,7 +53,6 @@ instance Outputable a => Outputable (Pat a)
 
 data Dec a = ScSig SourcePos a (Type a)
            | ScDef SourcePos a [a] (Exp a)
-           | SumTypeDef SourcePos a [a] [ConstructorDef a]
            | TypeAliasDef SourcePos a [a] (Type a)
   deriving (Eq, Ord, Show, Generic, Data)
 
@@ -60,8 +61,10 @@ type ConstructorDef a = (a, [Type a])
 instance Outputable a => Outputable (Dec a)
 
 data Type a = TyApp SourcePos (Type a) (Type a)
-            | TyCon SourcePos a
             | TyVar SourcePos a
+            | TyCon SourcePos a
+            | TyRecord [(Text, Type a)]
+            | TyVariant [(Text, Type a)]
   deriving (Eq, Ord, Show, Generic, Data)
 
 instance Outputable a => Outputable (Type a)

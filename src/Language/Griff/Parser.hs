@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Language.Griff.Parser (pExp, pDec) where
 
@@ -36,12 +37,6 @@ integer = lexeme L.decimal
 float :: Parser Double
 float = lexeme L.float
 
-signedInteger :: Parser Integer
-signedInteger = L.signed sc integer
-
-signedFloat :: Parser Double
-signedFloat = L.signed sc float
-
 pKeyword :: Text -> Parser ()
 pKeyword keyword = void $ lexeme (string keyword <* notFollowedBy alphaNumChar)
 
@@ -79,15 +74,23 @@ pChar = Char <$> getSourcePos <*> charLiteral <?> "char"
 pString :: Parser (Exp Text)
 pString = String <$> getSourcePos <*> stringLiteral <?> "string"
 
-pConstructor :: Parser (Exp Text)
-pConstructor = Constructor <$> getSourcePos <*> upperIdent <?> "constructor"
+pRecord :: Parser (Exp Text)
+pRecord = label "record" $ between (symbol "{") (symbol "}") $
+  Record <$> getSourcePos <*> field `sepBy` symbol ","
+  where
+    field = (,) <$> lowerIdent <* pOperator "=" <*> pExp
+
+pProj :: Parser (Exp Text)
+pProj = label "proj" $ between (symbol "<") (symbol ">") $
+  Proj <$> getSourcePos <*> lowerIdent <* pOperator "=" <*> pExp
 
 pSingleExp :: Parser (Exp Text)
 pSingleExp = pVariable
-  <|> pConstructor
   <|> pInteger
   <|> pChar
   <|> pString
+  <|> pRecord
+  <|> pProj
   <|> parens pExp
 
 pApply :: Parser (Exp Text)
@@ -109,15 +112,8 @@ pLambda = label "lambda" $ do
   return $ Lambda s x $ foldr (Lambda s) e xs
 
 pLet :: Parser (Exp Text)
-pLet = label "let" $ do
-  s <- getSourcePos
-  pKeyword "let"
-  f <- lowerIdent
-  xs <- many lowerIdent
-  pOperator "="
-  v <- pExp
-  pKeyword "in"
-  Let s f xs v <$> pExp
+pLet = label "let" $
+  Let <$> getSourcePos <* pKeyword "let" <*> lowerIdent <*> many lowerIdent <* pOperator "=" <*> pExp <* pKeyword "in" <*> pExp
 
 pLetRec :: Parser (Exp Text)
 pLetRec = label "let rec" $ do
@@ -155,10 +151,10 @@ opTable = [
   ]
   where
     left name f = InfixL (getSourcePos >>= \s -> pOperator name >> return (f s))
-    neutral name f = InfixN (getSourcePos >>= \s -> pOperator name >> return (f s))
-    right name f = InfixR (getSourcePos >>= \s -> pOperator name >> return (f s))
-    prefix name f = Prefix (getSourcePos >>= \s -> pOperator name >> return (f s))
-    postfix name f = Postfix (getSourcePos >>= \s -> pOperator name >> return (f s))
+    -- neutral name f = InfixN (getSourcePos >>= \s -> pOperator name >> return (f s))
+    -- right name f = InfixR (getSourcePos >>= \s -> pOperator name >> return (f s))
+    -- prefix name f = Prefix (getSourcePos >>= \s -> pOperator name >> return (f s))
+    -- postfix name f = Postfix (getSourcePos >>= \s -> pOperator name >> return (f s))
 
 pVarPat :: Parser (Pat Text)
 pVarPat = label "variable pattern" $ do
@@ -194,11 +190,9 @@ pExp = try pBinOp
        <|> pCase
        <|> do { s <- getSourcePos
               ; pOperator "-"
-              ; x <- pSingleExp
-              ; return $ BinOp s Sub (Int s 0) x }
+              ; BinOp s Sub (Int s 0) <$> pSingleExp }
        <|> do { pOperator "+"
-              ; x <- pSingleExp
-              ; return x }
+              ; pSingleExp }
        <|> pSingleExp
 
 pDec :: Parser (Dec Text)
@@ -211,5 +205,4 @@ pScDef = label "toplevel function definition" $ do
   f <- lowerIdent
   xs <- many lowerIdent
   pOperator "="
-  v <- pExp
-  return $ ScDef s f xs v
+  ScDef s f xs <$> pExp
