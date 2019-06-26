@@ -148,10 +148,6 @@ pBinOp = makeExprParser pTerm opTable
 
 opTable :: [[Operator Parser (Exp Text)]]
 opTable = [
-  -- 前置演算子はpSingleOpに対してのみ適用可能にしないといけない
-  -- [ prefix "-" $ \s x -> BinOp s Sub (Int s 0) x
-  --   , prefix "+" $ \_ x -> x ]
-  -- ,
   [ left "*" $ \s l h -> BinOp s Mul l h
   , left "/" $ \s l h -> BinOp s Div l h]
   , [ left "+" $ \s l h -> BinOp s Add l h
@@ -196,6 +192,13 @@ pExp = try pBinOp
        <|> try pLet -- revert "let"
        <|> pLetRec
        <|> pCase
+       <|> do { s <- getSourcePos
+              ; pOperator "-"
+              ; x <- pSingleExp
+              ; return $ BinOp s Sub (Int s 0) x }
+       <|> do { pOperator "+"
+              ; x <- pSingleExp
+              ; return x }
        <|> pSingleExp
 
 pDec :: Parser (Dec Text)
