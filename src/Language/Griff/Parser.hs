@@ -1,5 +1,5 @@
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections     #-}
 module Language.Griff.Parser (pExp, pDec) where
 
 import           Control.Monad
@@ -34,8 +34,8 @@ stringLiteral = pack <$> (char '\"' *> manyTill L.charLiteral (char '\"'))
 integer :: Parser Integer
 integer = lexeme L.decimal
 
-float :: Parser Double
-float = lexeme L.float
+-- float :: Parser Double
+-- float = lexeme L.float
 
 pKeyword :: Text -> Parser ()
 pKeyword keyword = void $ lexeme (string keyword <* notFollowedBy alphaNumChar)
@@ -47,7 +47,7 @@ pOperator :: Text -> Parser ()
 pOperator op = void $ lexeme (string op <* notFollowedBy opLetter)
 
 reserved :: Parser ()
-reserved = void $ choice $ map (try . pKeyword) ["let", "in", "and", "rec", "fn", "case", "of", "as"]
+reserved = void $ choice $ map (try . pKeyword) ["let", "in", "and", "rec", "fn", "case", "of", "as", "type"]
 
 lowerIdent :: Parser Text
 lowerIdent = lexeme $ do
@@ -200,16 +200,21 @@ pExp = try pAscribe
        <|> pSingleExp
 
 pDec :: Parser (Dec Text)
-pDec = pScDef
-  -- TODO: TypeDefのパーサ
+pDec = try pScSig
+       <|> pScDef
+       <|> pTypeAliasDef
+
+pScSig :: Parser (Dec Text)
+pScSig = label "toplevel function signature" $
+  ScSig <$> getSourcePos <*> lowerIdent <* symbol ":" <*> pType
 
 pScDef :: Parser (Dec Text)
-pScDef = label "toplevel function definition" $ do
-  s <- getSourcePos
-  f <- lowerIdent
-  xs <- many lowerIdent
-  pOperator "="
-  ScDef s f xs <$> pExp
+pScDef = label "toplevel function definition" $
+  ScDef <$> getSourcePos <*> lowerIdent <*> many lowerIdent <* pOperator "=" <*> pExp
+
+pTypeAliasDef :: Parser (Dec Text)
+pTypeAliasDef = label "type alias definition" $
+  TypeAliasDef <$> getSourcePos <* pKeyword "type" <*> upperIdent <*> many lowerIdent <* pOperator "=" <*> pType
 
 pType :: Parser (Type Text)
 pType = try pTyApp
@@ -230,5 +235,5 @@ pSingleType = TyVar <$> getSourcePos <*> lowerIdent
              <|> pTyVariant
   where
     pTyRecord = TyRecord <$> getSourcePos <*> between (symbol "{") (symbol "}") (field `sepBy` symbol ",")
-    pTyVariant = TyVariant <$> getSourcePos <*> between (symbol "<") (symbol ">") (field `sepBy` symbol ",")
+    pTyVariant = TyVariant <$> getSourcePos <*> between (symbol "<") (symbol ">") (field `sepBy` symbol "|")
     field = (,) <$> lowerIdent <* pOperator ":" <*> pType
