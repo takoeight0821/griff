@@ -63,8 +63,8 @@ instance Outputable a => Outputable (Dec a)
 data Type a = TyApp SourcePos (Type a) (Type a)
             | TyVar SourcePos a
             | TyCon SourcePos a
-            | TyRecord [(Text, Type a)]
-            | TyVariant [(Text, Type a)]
+            | TyRecord SourcePos [(Text, Type a)]
+            | TyVariant SourcePos [(Text, Type a)]
   deriving (Eq, Ord, Show, Generic, Data)
 
 instance Outputable a => Outputable (Type a)

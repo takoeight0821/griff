@@ -47,7 +47,7 @@ pOperator :: Text -> Parser ()
 pOperator op = void $ lexeme (string op <* notFollowedBy opLetter)
 
 reserved :: Parser ()
-reserved = void $ choice $ map (try . pKeyword) ["let", "in", "and", "rec", "fn", "case", "of"]
+reserved = void $ choice $ map (try . pKeyword) ["let", "in", "and", "rec", "fn", "case", "of", "as"]
 
 lowerIdent :: Parser Text
 lowerIdent = lexeme $ do
@@ -181,8 +181,12 @@ pCase = label "case expression" $ do
       e <- pExp
       return (pat, e)
 
+pAscribe :: Parser (Exp Text)
+pAscribe = Ascribe <$> getSourcePos <*> pTerm <* pKeyword "as" <*> pType
+
 pExp :: Parser (Exp Text)
-pExp = try pBinOp
+pExp = try pAscribe
+       <|>try pBinOp
        <|> pTerm
        <|> pLambda
        <|> try pLet -- revert "let"
@@ -206,3 +210,25 @@ pScDef = label "toplevel function definition" $ do
   xs <- many lowerIdent
   pOperator "="
   ScDef s f xs <$> pExp
+
+pType :: Parser (Type Text)
+pType = try pTyApp
+        <|> pSingleType
+
+pTyApp :: Parser (Type Text)
+pTyApp = do
+  s <- getSourcePos
+  f <- pSingleType
+  x <- pSingleType
+  xs <- many pSingleType
+  return $ foldl (TyApp s) f (x:xs)
+
+pSingleType :: Parser (Type Text)
+pSingleType = TyVar <$> getSourcePos <*> lowerIdent
+             <|> TyCon <$> getSourcePos <*> upperIdent
+             <|> pTyRecord
+             <|> pTyVariant
+  where
+    pTyRecord = TyRecord <$> getSourcePos <*> between (symbol "{") (symbol "}") (field `sepBy` symbol ",")
+    pTyVariant = TyVariant <$> getSourcePos <*> between (symbol "<") (symbol ">") (field `sepBy` symbol ",")
+    field = (,) <$> lowerIdent <* pOperator ":" <*> pType
