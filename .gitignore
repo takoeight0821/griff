@@ -24,3 +24,4 @@ cabal.project.local~
 Vagrantfile
 .vscode/
 .DS_store
+stack.yaml.lock
