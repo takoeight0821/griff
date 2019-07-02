@@ -226,16 +226,11 @@ pTyArr =
   TyArr <$> getSourcePos <*> pSingleType <* pOperator "->" <*> pType
 
 pTyApp :: Parser (Type Text)
-pTyApp = do
-  s <- getSourcePos
-  f <- pSingleType
-  x <- pSingleType
-  xs <- many pSingleType
-  return $ foldl (TyApp s) f (x:xs)
+pTyApp =
+  TyApp <$> getSourcePos <*> upperIdent <*> many pSingleType
 
 pSingleType :: Parser (Type Text)
 pSingleType = TyVar <$> getSourcePos <*> lowerIdent
-             <|> TyCon <$> getSourcePos <*> upperIdent
              <|> pTyRecord
              <|> pTyVariant
              <|> between (symbol "(") (symbol ")") pType
