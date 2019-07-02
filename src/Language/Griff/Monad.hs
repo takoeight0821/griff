@@ -1,3 +1,7 @@
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -10,6 +14,8 @@ module Language.Griff.Monad where
 
 import           Capability.Reader
 import           Capability.State
+import           Control.Monad.Except
+import qualified Control.Monad.State.Class as MTL
 import           Control.Monad.IO.Class
 import           Control.Monad.Reader   (ReaderT, runReaderT)
 import           Data.IORef
@@ -21,9 +27,12 @@ data Ctx = Ctx { _uniq :: IORef Int
                } deriving Generic
 
 newtype GriffT m a = GriffT (ReaderT Ctx m a)
-  deriving (Functor, Applicative, Monad)
+  deriving (Functor, Applicative, Monad, MonadTrans)
   deriving (HasState "uniq" Int) via ReaderIORef (Rename "_uniq" (Field "_uniq" () (MonadReader (ReaderT Ctx m))))
   deriving (HasReader "fileName" Text) via Rename "_fileName" (Field "_fileName" () (MonadReader (ReaderT Ctx m)))
+
+deriving instance MonadError e m => MonadError e (GriffT m)
+deriving instance MTL.MonadState s m => MTL.MonadState s (GriffT m)
 
 runGriffT :: MonadIO m => Text -> GriffT m a -> m a
 runGriffT fileName (GriffT m) = do

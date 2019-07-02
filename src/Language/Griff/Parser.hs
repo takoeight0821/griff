@@ -217,8 +217,13 @@ pTypeAliasDef = label "type alias definition" $
   TypeAliasDef <$> getSourcePos <* pKeyword "type" <*> upperIdent <*> many lowerIdent <* pOperator "=" <*> pType
 
 pType :: Parser (Type Text)
-pType = try pTyApp
+pType = try pTyArr
+        <|> try pTyApp
         <|> pSingleType
+
+pTyArr :: Parser (Type Text)
+pTyArr =
+  TyArr <$> getSourcePos <*> pSingleType <* pOperator "->" <*> pType
 
 pTyApp :: Parser (Type Text)
 pTyApp = do
@@ -233,6 +238,7 @@ pSingleType = TyVar <$> getSourcePos <*> lowerIdent
              <|> TyCon <$> getSourcePos <*> upperIdent
              <|> pTyRecord
              <|> pTyVariant
+             <|> between (symbol "(") (symbol ")") pType
   where
     pTyRecord = TyRecord <$> getSourcePos <*> between (symbol "{") (symbol "}") (field `sepBy` symbol ",")
     pTyVariant = TyVariant <$> getSourcePos <*> between (symbol "<") (symbol ">") (field `sepBy` symbol "|")
