@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 0891a661fc5aed3fbc1ec39b1fc402c6e23369deee5321c69193af12a24ef8d2
+-- hash: b64d6aaede42a342d5540e16307e266db2369e7bd6e5fb2438455e71fbef928e
 
 name:           griff
 version:        0.1.0.0
@@ -90,7 +90,6 @@ test-suite griff-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
-      Language.Griff.L2ISpec
       Paths_griff
   hs-source-dirs:
       test

@@ -1,28 +1,26 @@
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DataKinds                  #-}
 {-# LANGUAGE DeriveFunctor              #-}
+{-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DerivingVia                #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE PolyKinds                  #-}
+{-# LANGUAGE StandaloneDeriving         #-}
+{-# LANGUAGE UndecidableInstances       #-}
 module Language.Griff.Monad where
 
 import           Capability.Reader
 import           Capability.State
 import           Control.Monad.Except
+import           Control.Monad.Reader      (ReaderT, runReaderT)
 import qualified Control.Monad.State.Class as MTL
-import           Control.Monad.IO.Class
-import           Control.Monad.Reader   (ReaderT, runReaderT)
 import           Data.IORef
 import           Data.Text
 import           GHC.Generics
 
-data Ctx = Ctx { _uniq :: IORef Int
+data Ctx = Ctx { _uniq     :: IORef Int
                , _fileName :: Text
                } deriving Generic
 

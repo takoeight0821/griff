@@ -3,7 +3,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings          #-}
 module Language.Griff.Typing.Monad
-  ( TypeError
+  ( TypeError(..)
   , Constraint
   , MonadInfer(..)
   , addScheme
@@ -30,6 +30,7 @@ data TypeError = UnificationFail Ty Ty
                | UnboundVariable Id
                | Ambigious [Constraint]
                | UnificationMismatch [Ty] [Ty]
+               | UndefinedType Id
   deriving (Show)
 
 type Constraint = (Ty, Ty)

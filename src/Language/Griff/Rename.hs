@@ -109,9 +109,8 @@ rnPat (ConstructorP s x ps) = do
   pure (ConstructorP s x' pats, env)
 
 rnType :: Monad m => Type Text -> RnT m (Type Id)
-rnType (TyApp s t1 t2) = TyApp s <$> rnType t1 <*> rnType t2
+rnType (TyApp s con ts) = TyApp s <$> lookupName' con <*> mapM rnType ts
 rnType (TyVar s x) = TyVar s <$> lookupName' x
-rnType (TyCon s x) = TyCon s <$> lookupName' x
 rnType (TyArr s t1 t2) = TyArr s <$> rnType t1 <*> rnType t2
 rnType (TyRecord s xs) = TyRecord s <$> mapM (\(x, t) -> (x,) <$> rnType t) xs
 rnType (TyVariant s xs) = TyVariant s <$> mapM (\(x, t) -> (x,) <$> rnType t) xs
