@@ -16,17 +16,15 @@ class Substitutable a where
   ftv :: a -> Set Id
 
 instance Substitutable Ty where
-  apply s (TApp t1 t2)       = TApp (apply s t1) (apply s t2)
   apply (Subst s) t@(TVar a) = Map.findWithDefault t a s
   apply s (t1 `TArr` t2)     = apply s t1 `TArr` apply s t2
-  apply _ (TCon a)           = TCon a
+  apply _ (TPrim a)          = TPrim a
   apply s (TRecord xs)       = TRecord $ fmap (apply s) xs
   apply s (TVariant xs)      = TVariant $ fmap (apply s) xs
 
-  ftv (TApp t1 t2)   = ftv t1 `Set.union` ftv t2
   ftv (TVar a)       = Set.singleton a
   ftv (t1 `TArr` t2) = ftv t1 `Set.union` ftv t2
-  ftv (TCon _)       = Set.empty
+  ftv (TPrim _)       = Set.empty
   ftv (TRecord xs)   = Set.unions $ map ftv $ Map.elems xs
   ftv (TVariant xs)  = Set.unions $ map ftv $ Map.elems xs
 

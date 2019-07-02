@@ -4,12 +4,14 @@ import Data.Map
 import Data.Text
 import Language.Griff.Id
 
-data Ty = TApp Ty Ty
-        | TVar Id
+data Ty = TVar Id
         | TArr Ty Ty
-        | TCon Id
+        | TPrim TPrim
         | TRecord (Map Text Ty)
         | TVariant (Map Text Ty)
+  deriving (Eq, Ord, Show)
+
+data TPrim = TInt | TChar | TString
   deriving (Eq, Ord, Show)
 
 data Scheme = Forall [Id] Ty

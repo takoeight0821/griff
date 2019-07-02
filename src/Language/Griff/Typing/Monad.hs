@@ -68,7 +68,6 @@ solver (su, cs) = case cs of
 
 unifies :: MonadError TypeError m => Ty -> Ty -> m Subst
 unifies t1 t2 | t1 == t2 = return mempty
-unifies (TApp t1 t2) (TApp t3 t4) = unifyMany [t1, t2] [t3, t4]
 unifies (TVar v) t = v `bind` t
 unifies t (TVar v) = v `bind` t
 unifies (TArr t1 t2) (TArr t3 t4) = unifyMany [t1, t2] [t3, t4]

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: f178ac52e93a4288538f04001b3501fe38d9d9d7065fc140967a096920ad0a2f
+-- hash: 0891a661fc5aed3fbc1ec39b1fc402c6e23369deee5321c69193af12a24ef8d2
 
 name:           griff
 version:        0.1.0.0
@@ -35,6 +35,7 @@ library
       Language.Griff.Syntax
       Language.Griff.TypeRep
       Language.Griff.Typing.Env
+      Language.Griff.Typing.Infer
       Language.Griff.Typing.Monad
       Language.Griff.Typing.Subst
       Language.Griff.Uniq
