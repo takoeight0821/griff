@@ -1,7 +1,10 @@
 {-# LANGUAGE DataKinds                  #-}
+{-# LANGUAGE DefaultSignatures          #-}
 {-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE TypeFamilies               #-}
 module Language.Griff.Typing.Monad
   ( TypeError(..)
   , Constraint
@@ -15,9 +18,12 @@ module Language.Griff.Typing.Monad
   ) where
 
 import           Control.Monad.Except
+import           Control.Monad.Fail
+import           Control.Monad.Reader
 import           Control.Monad.State
 import qualified Data.Map                    as Map
 import qualified Data.Set                    as Set
+import           Data.Text                   (Text)
 import           Language.Griff.Id
 import           Language.Griff.Monad
 import           Language.Griff.TypeRep
@@ -31,15 +37,29 @@ data TypeError = UnificationFail Ty Ty
                | Ambigious [Constraint]
                | UnificationMismatch [Ty] [Ty]
                | UndefinedType Id
+               | UndecidableProj Text
   deriving (Show)
 
 type Constraint = (Ty, Ty)
 
-class (Monad m, MonadError TypeError m) => MonadInfer m where
+class (Monad m, MonadError TypeError m, MonadFail m) => MonadInfer m where
   lookup :: Id -> m Ty
+  default lookup :: (MonadInfer m', MonadTrans t, t m' ~ m) => Id -> m Ty
+  lookup = lift . lookup
+
   update :: (Env -> Env) -> m ()
+  default update :: (MonadInfer m', MonadTrans t, t m' ~ m) => (Env -> Env) -> m ()
+  update = lift . update
+
   getEnv :: m Env
+  default getEnv :: (MonadInfer m', MonadTrans t, t m' ~ m) => m Env
+  getEnv = lift getEnv
+
   fresh :: m Ty
+  default fresh :: (MonadInfer m', MonadTrans t, t m' ~ m) => m Ty
+  fresh = lift fresh
+
+instance MonadInfer m => MonadInfer (ReaderT r m)
 
 addScheme :: MonadInfer m => (Id, Scheme) -> m ()
 addScheme (x, sc) = do
@@ -98,9 +118,9 @@ occursCheck :: Substitutable a => Id -> a -> Bool
 occursCheck a t = a `Set.member` ftv t
 
 newtype Infer m a = Infer (StateT Env (ExceptT TypeError (GriffT m)) a)
-   deriving (Functor, Applicative, Monad, MonadError TypeError)
+   deriving (Functor, Applicative, Monad, MonadError TypeError, MonadFail)
 
-instance MonadIO m => MonadInfer (Infer m) where
+instance (MonadIO m, MonadFail m) => MonadInfer (Infer m) where
   lookup x = do
     Env env <- Infer get
     case Map.lookup x env of

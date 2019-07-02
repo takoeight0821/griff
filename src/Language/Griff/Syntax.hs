@@ -10,8 +10,9 @@ module Language.Griff.Syntax where
 import           Control.Lens.Plated
 import           Data.Data
 import           Data.Outputable
-import           Data.Text           (Text)
+import           Data.Text              (Text)
 import           GHC.Generics
+import           Language.Griff.TypeRep (TPrim (..))
 import           Text.Megaparsec.Pos
 
 instance Outputable Pos where
@@ -23,6 +24,7 @@ data Exp a = Var SourcePos a
            | Int SourcePos Integer
            | Char SourcePos Char
            | String SourcePos Text
+           | Bool SourcePos Bool
            | Record SourcePos [(Text, Exp a)]
            | Proj SourcePos Text (Exp a)
            | Ascribe SourcePos (Exp a) (Type a)
@@ -38,7 +40,7 @@ data Exp a = Var SourcePos a
 instance Outputable a => Outputable (Exp a)
 instance Data a => Plated (Exp a)
 
-data Op = Add | Sub | Mul | Div | Mod | FAdd | FSub | FMul | FDiv | Eq | Neq | Lt | Le | Gt | Ge | And | Or
+data Op = Add | Sub | Mul | Div | Mod | Eq | Neq | Lt | Le | Gt | Ge | And | Or
   deriving (Eq, Ord, Show, Generic, Data)
 
 instance Outputable Op
@@ -63,6 +65,7 @@ instance Outputable a => Outputable (Dec a)
 
 data Type a = TyApp SourcePos a [Type a]
             | TyVar SourcePos a
+            | TyPrim SourcePos TPrim
             | TyArr SourcePos (Type a) (Type a)
             | TyRecord SourcePos [(Text, Type a)]
             | TyVariant SourcePos [(Text, Type a)]

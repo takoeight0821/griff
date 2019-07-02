@@ -14,6 +14,7 @@ module Language.Griff.Monad where
 import           Capability.Reader
 import           Capability.State
 import           Control.Monad.Except
+import           Control.Monad.Fail
 import           Control.Monad.Reader      (ReaderT, runReaderT)
 import qualified Control.Monad.State.Class as MTL
 import           Data.IORef
@@ -25,7 +26,7 @@ data Ctx = Ctx { _uniq     :: IORef Int
                } deriving Generic
 
 newtype GriffT m a = GriffT (ReaderT Ctx m a)
-  deriving (Functor, Applicative, Monad, MonadTrans)
+  deriving (Functor, Applicative, Monad, MonadTrans, MonadFail)
   deriving (HasState "uniq" Int) via ReaderIORef (Rename "_uniq" (Field "_uniq" () (MonadReader (ReaderT Ctx m))))
   deriving (HasReader "fileName" Text) via Rename "_fileName" (Field "_fileName" () (MonadReader (ReaderT Ctx m)))
 

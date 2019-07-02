@@ -7,6 +7,7 @@ import           Control.Monad.Combinators.Expr
 import           Data.Text                      (Text, pack)
 import           Data.Void
 import           Language.Griff.Syntax
+import           Language.Griff.TypeRep
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer     as L
@@ -47,7 +48,7 @@ pOperator :: Text -> Parser ()
 pOperator op = void $ lexeme (string op <* notFollowedBy opLetter)
 
 reserved :: Parser ()
-reserved = void $ choice $ map (try . pKeyword) ["let", "in", "and", "rec", "fn", "case", "of", "as", "type"]
+reserved = void $ choice $ map (try . pKeyword) ["let", "in", "and", "rec", "fn", "case", "of", "as", "type", "true", "false", "Int", "Bool", "Char", "String"]
 
 lowerIdent :: Parser Text
 lowerIdent = lexeme $ do
@@ -85,7 +86,10 @@ pProj = label "proj" $ between (symbol "<") (symbol ">") $
   Proj <$> getSourcePos <*> lowerIdent <* pOperator "=" <*> pExp
 
 pSingleExp :: Parser (Exp Text)
-pSingleExp = pVariable
+pSingleExp =
+  try (Bool <$> getSourcePos <* pKeyword "true" <*> pure True)
+  <|> try (Bool <$> getSourcePos <* pKeyword "false" <*> pure False)
+  <|> pVariable
   <|> pInteger
   <|> pChar
   <|> pString
@@ -230,10 +234,15 @@ pTyApp =
   TyApp <$> getSourcePos <*> upperIdent <*> many pSingleType
 
 pSingleType :: Parser (Type Text)
-pSingleType = TyVar <$> getSourcePos <*> lowerIdent
-             <|> pTyRecord
-             <|> pTyVariant
-             <|> between (symbol "(") (symbol ")") pType
+pSingleType =
+  try (TyPrim <$> getSourcePos <* pKeyword "Int" <*> pure TInt)
+  <|> try (TyPrim <$> getSourcePos <* pKeyword "Char" <*> pure TChar)
+  <|> try (TyPrim <$> getSourcePos <* pKeyword "String" <*> pure TString)
+  <|> try (TyPrim <$> getSourcePos <* pKeyword "Bool" <*> pure TBool)
+  <|> TyVar <$> getSourcePos <*> lowerIdent
+  <|> pTyRecord
+  <|> pTyVariant
+  <|> between (symbol "(") (symbol ")") pType
   where
     pTyRecord = TyRecord <$> getSourcePos <*> between (symbol "{") (symbol "}") (field `sepBy` symbol ",")
     pTyVariant = TyVariant <$> getSourcePos <*> between (symbol "<") (symbol ">") (field `sepBy` symbol "|")

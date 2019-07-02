@@ -1,18 +1,29 @@
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric #-}
 module Language.Griff.TypeRep where
 
-import Data.Map
-import Data.Text
-import Language.Griff.Id
+import           Data.Data
+import           Data.Map
+import           Data.Outputable
+import           Data.Text
+import           GHC.Generics
+import           Language.Griff.Id
 
 data Ty = TVar Id
         | TArr Ty Ty
         | TPrim TPrim
         | TRecord (Map Text Ty)
         | TVariant (Map Text Ty)
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic, Data)
 
-data TPrim = TInt | TChar | TString
-  deriving (Eq, Ord, Show)
+instance Outputable Ty
+
+data TPrim = TInt | TChar | TString | TBool
+  deriving (Eq, Ord, Show, Generic, Data)
+
+instance Outputable TPrim
 
 data Scheme = Forall [Id] Ty
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic, Data)
+
+instance Outputable Scheme
