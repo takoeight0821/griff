@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: b64d6aaede42a342d5540e16307e266db2369e7bd6e5fb2438455e71fbef928e
+-- hash: f5bc504173a61b026ba001a6e6376fb64ef5e70e1dcb4f90e695c5e7db246b03
 
 name:           griff
 version:        0.1.0.0
@@ -26,19 +26,6 @@ source-repository head
   location: https://github.com/takoeight0821/griff
 
 library
-  exposed-modules:
-      Language.Griff.Gam.Instr
-      Language.Griff.Id
-      Language.Griff.Monad
-      Language.Griff.Parser
-      Language.Griff.Rename
-      Language.Griff.Syntax
-      Language.Griff.TypeRep
-      Language.Griff.Typing.Env
-      Language.Griff.Typing.Infer
-      Language.Griff.Typing.Monad
-      Language.Griff.Typing.Subst
-      Language.Griff.Uniq
   other-modules:
       Paths_griff
   hs-source-dirs:
