@@ -25,3 +25,4 @@ Vagrantfile
 .vscode/
 .DS_store
 stack.yaml.lock
+*.cabal
