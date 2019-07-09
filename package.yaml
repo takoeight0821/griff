@@ -34,6 +34,9 @@ dependencies:
 - reflection
 - text
 - megaparsec
+- llvm-hs-pure
+- llvm-hs
+- bytestring
 
 ghc-options:
 - -Wall
