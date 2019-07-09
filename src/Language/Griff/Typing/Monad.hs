@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DataKinds                  #-}
 {-# LANGUAGE DefaultSignatures          #-}
 {-# LANGUAGE FlexibleContexts           #-}
@@ -22,8 +23,10 @@ import           Control.Monad.Fail
 import           Control.Monad.Reader
 import           Control.Monad.State
 import qualified Data.Map                    as Map
+import           Data.Outputable
 import qualified Data.Set                    as Set
 import           Data.Text                   (Text)
+import           GHC.Generics
 import           Language.Griff.Id
 import           Language.Griff.Monad
 import           Language.Griff.TypeRep
@@ -38,7 +41,9 @@ data TypeError = UnificationFail Ty Ty
                | UnificationMismatch [Ty] [Ty]
                | UndefinedType Id
                | UndecidableProj Text
-  deriving (Show)
+  deriving (Show, Generic)
+
+instance Outputable TypeError
 
 type Constraint = (Ty, Ty)
 

@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections     #-}
-module Language.Griff.Parser (pExp, pDec) where
+module Language.Griff.Parser (pExp, pDec, pDecs) where
 
 import           Control.Monad
 import           Control.Monad.Combinators.Expr
@@ -203,6 +203,9 @@ pExp = try pAscribe
               ; pSingleExp }
        <|> pSingleExp
 
+pDecs :: Parser [Dec Text]
+pDecs = many (pDec <* symbol ";")
+
 pDec :: Parser (Dec Text)
 pDec = try pScSig
        <|> pScDef
@@ -240,6 +243,7 @@ pSingleType =
   <|> try (TyPrim <$> getSourcePos <* pKeyword "String" <*> pure TString)
   <|> try (TyPrim <$> getSourcePos <* pKeyword "Bool" <*> pure TBool)
   <|> TyVar <$> getSourcePos <*> lowerIdent
+  <|> TyApp <$> getSourcePos <*> upperIdent <*> pure []
   <|> pTyRecord
   <|> pTyVariant
   <|> between (symbol "(") (symbol ")") pType

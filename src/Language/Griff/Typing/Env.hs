@@ -1,16 +1,21 @@
+{-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Language.Griff.Typing.Env where
 
 import           Data.Map                    (Map)
 import qualified Data.Map                    as Map
 import           Data.Monoid
+import           Data.Outputable
+import           GHC.Generics
 import           Language.Griff.Id
 import           Language.Griff.TypeRep
 import           Language.Griff.Typing.Subst
 import           Prelude                     hiding (lookup)
 
 newtype Env = Env { types :: Map Id Scheme }
-  deriving (Show, Eq, Monoid, Semigroup)
+  deriving (Show, Eq, Monoid, Semigroup, Generic)
+
+instance Outputable Env
 
 instance Substitutable Env where
   apply s (Env env) = Env $ fmap (apply s) env

@@ -7,6 +7,7 @@ import           Control.Monad.Reader
 import           Data.Map              (Map)
 import qualified Data.Map              as Map
 import           Data.Maybe            (fromJust)
+import qualified Data.Set              as Set
 import           Data.Text             (Text)
 import           Language.Griff.Id
 import           Language.Griff.Monad
@@ -17,8 +18,8 @@ rename ds = flip runReaderT Map.empty $ do
   env <- genTop $ map name ds
   local (env <>) $ mapM rnDec ds
   where
-    name (ScSig _ x _) = x
-    name (ScDef _ x _ _) = x
+    name (ScSig _ x _)          = x
+    name (ScDef _ x _ _)        = x
     name (TypeAliasDef _ x _ _) = x
     genTop [] = ask
     genTop (x : xs) =
@@ -55,7 +56,7 @@ withName x k = do
 
 rnDec :: MonadIO m => Dec Text -> RnT m (Dec Id)
 rnDec (ScSig s x t) =
-  ScSig s <$> lookupName' x <*> rnType t
+  ScSig s <$> lookupName' x <*> withNewNames (Set.toList (freeTyVars t)) (rnType t)
 rnDec (ScDef s x xs e) = withNewNames xs $
   ScDef s <$> lookupName' x <*> mapM lookupName' xs <*> rnExp e
 rnDec (TypeAliasDef s x xs t) = withNewNames xs $
@@ -108,6 +109,14 @@ rnPat (ConstructorP s x ps) = do
   let env = foldr ((<>) . snd) Map.empty ps'
   x' <- lookupName' x
   pure (ConstructorP s x' pats, env)
+
+freeTyVars :: Ord a => Type a -> Set.Set a
+freeTyVars (TyApp _ _ ts)   = Set.unions $ map freeTyVars ts
+freeTyVars (TyVar _ x)      = Set.singleton x
+freeTyVars (TyArr _ t1 t2)  = freeTyVars t1 <> freeTyVars t2
+freeTyVars TyPrim{}         = Set.empty
+freeTyVars (TyRecord _ xs)  = Set.unions $ map (freeTyVars . snd) xs
+freeTyVars (TyVariant _ xs) = Set.unions $ map (freeTyVars . snd) xs
 
 rnType :: Monad m => Type Text -> RnT m (Type Id)
 rnType (TyApp s con ts) = TyApp s <$> lookupName' con <*> mapM rnType ts

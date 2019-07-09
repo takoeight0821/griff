@@ -26,7 +26,7 @@ data Ctx = Ctx { _uniq     :: IORef Int
                } deriving Generic
 
 newtype GriffT m a = GriffT (ReaderT Ctx m a)
-  deriving (Functor, Applicative, Monad, MonadTrans, MonadFail)
+  deriving (Functor, Applicative, Monad, MonadTrans, MonadFail, MonadIO)
   deriving (HasState "uniq" Int) via ReaderIORef (Rename "_uniq" (Field "_uniq" () (MonadReader (ReaderT Ctx m))))
   deriving (HasReader "fileName" Text) via Rename "_fileName" (Field "_fileName" () (MonadReader (ReaderT Ctx m)))
 

@@ -79,7 +79,10 @@ infer ds = do
     prepare = mapM_ (\x -> fresh >>= \tv -> addScheme (x, Forall [] tv))
 
 inferDef :: MonadInfer m => (SourcePos, Id, [Id], Exp Id) -> ReaderT (ConMap m) m (Ty, [Constraint])
-inferDef (s, _, xs, e) = inferExp $ foldr (Lambda s) e xs
+inferDef (s, f, xs, e) = do
+  (t0, cs) <- inferExp $ foldr (Lambda s) e xs
+  t1 <- lookup f
+  return (t0, (t0, t1) : cs)
 
 inferExp :: MonadInfer m => Exp Id -> ReaderT (ConMap m) m (Ty, [Constraint])
 inferExp (Var _ a) = do
