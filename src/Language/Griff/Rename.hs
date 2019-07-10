@@ -100,15 +100,13 @@ rnPat :: MonadIO m => Pat Text -> RnT m (Pat Id, Map Text Id)
 rnPat (VarP s x) = withNewName x $ do
   x' <- lookupName' x
   pure (VarP s x', Map.fromList [(x, x')])
-rnPat (IntP s x) = pure (IntP s x, Map.empty)
-rnPat (CharP s x) = pure (CharP s x, Map.empty)
-rnPat (StringP s x) = pure (StringP s x, Map.empty)
-rnPat (ConstructorP s x ps) = do
-  ps' <- mapM rnPat ps
-  let pats = map fst ps'
-  let env = foldr ((<>) . snd) Map.empty ps'
-  x' <- lookupName' x
-  pure (ConstructorP s x' pats, env)
+rnPat (RecordP s xs) = do
+  let ps = map snd xs
+  (ps', ns) <- unzip <$> mapM rnPat ps
+  pure (RecordP s (zip (map fst xs) ps'), Map.unions ns)
+rnPat (VariantP s x p) = do
+  (p', n) <- rnPat p
+  pure (VariantP s x p', n)
 
 freeTyVars :: Ord a => Type a -> Set.Set a
 freeTyVars (TyApp _ _ ts)   = Set.unions $ map freeTyVars ts

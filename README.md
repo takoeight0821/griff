@@ -1,17 +1,5 @@
 # griff
 
-## 構造
-
-Language.Griff
-- IR
-  + Syntax 構文木そのもの
-  + HIR    desugerしたもの
-  + MIR    ラムダ計算+αのレベルに落としたもの
-  + LIR    Cと一対一対応する程度まで落としたもの
-- Trans Syntax to SyntaxとかHIR to HIRとか
-- Reducer Syntax to HIRとかHIR to MIRとか
-  + CodeGen コード生成
-
 ## 作りたいもの
 
 * Haskell風の文法をもつ関数型プログラミング言語

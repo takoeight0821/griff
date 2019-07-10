@@ -46,10 +46,8 @@ data Op = Add | Sub | Mul | Div | Mod | Eq | Neq | Lt | Le | Gt | Ge | And | Or
 instance Outputable Op
 
 data Pat a = VarP SourcePos a
-           | IntP SourcePos Integer
-           | CharP SourcePos Char
-           | StringP SourcePos Text
-           | ConstructorP SourcePos a [Pat a]
+           | RecordP SourcePos [(Text, Pat a)]
+           | VariantP SourcePos Text (Pat a)
   deriving (Eq, Ord, Show, Generic, Data, Foldable)
 
 instance Outputable a => Outputable (Pat a)
