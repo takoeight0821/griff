@@ -21,4 +21,4 @@ main = do
       typeEnv <- runInfer mempty (infer ast')
       liftIO $ print $ ppr ast'
       liftIO $ print $ ppr typeEnv
-    Left err -> liftIO $ print err
+    Left err -> liftIO $ putStrLn $ errorBundlePretty err

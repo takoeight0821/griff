@@ -118,14 +118,32 @@ inferExp (Lambda _ x e) = do
   (eType, cs) <- inferExp e
   pure (TArr tv eType, cs)
 inferExp (Let s f xs e1 e2) = do
+  env <- getEnv
+
   (t1, cs1) <- inferExp $ foldr (Lambda s) e1 xs
   sub <- runSolve cs1
-  env <- getEnv
+
   let sc = generalize (apply sub env) (apply sub t1)
   addScheme (f, sc)
   update (apply sub)
+
   (t2, cs2) <- inferExp e2
   pure (t2, cs1 <> cs2)
+inferExp (LetRec s [(f, xs, e1)] e2) = do
+  env <- getEnv
+
+  tv <- fresh
+  addScheme (f, Forall [] tv)
+
+  (t0, cs0) <- inferExp $ foldr (Lambda s) e1 xs
+  sub <- runSolve ((t0, tv) : cs0)
+
+  let sc = generalize (apply sub env) (apply sub t0)
+  addScheme (f, sc)
+  update (apply sub)
+
+  (t1, cs1) <- inferExp e2
+  pure (t1, (t0, tv) : cs1 <> cs0)
 
 ops :: MonadInfer m => Op -> m Ty
 ops Add = pure (TPrim TInt `TArr` (TPrim TInt `TArr` TPrim TInt))
