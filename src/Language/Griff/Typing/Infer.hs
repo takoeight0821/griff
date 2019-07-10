@@ -102,6 +102,11 @@ inferExp (Ascribe _ (Proj _ label e) t) = do
   let valType = fromJust $ Map.lookup label xs
   (eType, cs) <- inferExp e
   pure (TVariant xs, (valType, eType) : cs)
+inferExp (Ascribe _ x t) = do
+  (xt, cs) <- inferExp x
+  env <- ask
+  t' <- lift $ convertType env t
+  pure (xt, (xt, t') : cs)
 inferExp (Apply _ e1 e2) = do
   (e1Type, cs1) <- inferExp e1
   (e2Type, cs2) <- inferExp e2
