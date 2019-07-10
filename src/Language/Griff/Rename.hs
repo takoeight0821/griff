@@ -6,7 +6,7 @@ import           Control.Lens
 import           Control.Monad.Reader
 import           Data.Map              (Map)
 import qualified Data.Map              as Map
-import           Data.Maybe            (fromJust)
+-- import           Data.Maybe            (fromJust)
 import qualified Data.Set              as Set
 import           Data.Text             (Text)
 import           Language.Griff.Id
@@ -44,14 +44,18 @@ lookupName x =
   asks (Map.lookup x)
 
 lookupName' :: Monad m => Text -> RnT m Id
-lookupName' x = fromJust <$> lookupName x
+lookupName' x = do
+  mx <- lookupName x
+  case mx of
+    Nothing -> error $ show x <> " is not defined"
+    Just x' -> pure x'
 
 withName :: MonadIO m => Text -> (Id -> RnT m a) -> RnT m a
 withName x k = do
   x' <- asks (Map.lookup x)
   case x' of
     Nothing -> withNewName x $
-      (fromJust <$> lookupName x) >>= k
+      lookupName' x >>= k
     Just i -> k i
 
 rnDec :: MonadIO m => Dec Text -> RnT m (Dec Id)

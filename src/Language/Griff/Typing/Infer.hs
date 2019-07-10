@@ -2,16 +2,16 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TupleSections              #-}
-{-# LANGUAGE TypeApplications           #-}
 module Language.Griff.Typing.Infer where
 
 import           Control.Arrow
-import           Control.Lens
+import           Control.Lens                hiding (op)
 import           Control.Monad.Except
 import           Control.Monad.Reader
 import qualified Data.Map                    as Map
 import           Data.Maybe
 import qualified Data.Set                    as Set
+import           Data.Tuple.Extra            (uncurry3)
 import           Language.Griff.Id
 import           Language.Griff.Syntax
 import           Language.Griff.TypeRep
@@ -129,21 +129,33 @@ inferExp (Let s f xs e1 e2) = do
 
   (t2, cs2) <- inferExp e2
   pure (t2, cs1 <> cs2)
-inferExp (LetRec s [(f, xs, e1)] e2) = do
+inferExp (LetRec s ds e2) = do
   env <- getEnv
-
-  tv <- fresh
-  addScheme (f, Forall [] tv)
-
-  (t0, cs0) <- inferExp $ foldr (Lambda s) e1 xs
-  sub <- runSolve ((t0, tv) : cs0)
-
-  let sc = generalize (apply sub env) (apply sub t0)
-  addScheme (f, sc)
-  update (apply sub)
-
+  mapM_ (prepare . view _1) ds
+  cs0 <- concat <$> mapM (uncurry3 $ inferRec env) ds
   (t1, cs1) <- inferExp e2
-  pure (t1, (t0, tv) : cs1 <> cs0)
+  pure (t1, cs1 <> cs0)
+  where
+    prepare f = fresh >>= \tv -> addScheme (f, Forall [] tv)
+    inferRec env f xs e = do
+      (t0, cs0) <- inferExp $ foldr (Lambda s) e xs
+      tv <- lookup f
+      sub <- runSolve ((t0, tv) : cs0)
+      let sc = generalize (apply sub env) (apply sub t0)
+      addScheme (f, sc)
+      update (apply sub)
+      pure ((t0, tv) : cs0)
+inferExp (BinOp _ op e1 e2) = do
+  (e1t, e1cs) <- inferExp e1
+  (e2t, e2cs) <- inferExp e2
+  opt <- ops op
+  ret <- fresh
+  pure (ret, (opt, e1t `TArr` (e2t `TArr` ret)) : e1cs <> e2cs)
+inferExp (If _ c t f) = do
+  (ct, ccs) <- inferExp c
+  (tt, tcs) <- inferExp t
+  (ft, fcs) <- inferExp f
+  pure (tt, [(ct, TPrim TBool), (tt, ft)] <> ccs <> tcs <> fcs)
 
 ops :: MonadInfer m => Op -> m Ty
 ops Add = pure (TPrim TInt `TArr` (TPrim TInt `TArr` TPrim TInt))

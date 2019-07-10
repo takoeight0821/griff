@@ -35,9 +35,6 @@ stringLiteral = pack <$> (char '\"' *> manyTill L.charLiteral (char '\"'))
 integer :: Parser Integer
 integer = lexeme L.decimal
 
--- float :: Parser Double
--- float = lexeme L.float
-
 pKeyword :: Text -> Parser ()
 pKeyword keyword = void $ lexeme (string keyword <* notFollowedBy alphaNumChar)
 
@@ -48,7 +45,7 @@ pOperator :: Text -> Parser ()
 pOperator op = void $ lexeme (string op <* notFollowedBy opLetter)
 
 reserved :: Parser ()
-reserved = void $ choice $ map (try . pKeyword) ["let", "in", "and", "rec", "fn", "case", "of", "as", "type", "true", "false", "Int", "Bool", "Char", "String"]
+reserved = void $ choice $ map (try . pKeyword) ["let", "in", "and", "rec", "fn", "case", "of", "as", "type", "true", "false", "Int", "Bool", "Char", "String", "if", "then", "else"]
 
 lowerIdent :: Parser Text
 lowerIdent = lexeme $ do
@@ -131,7 +128,7 @@ pLetRec = label "let rec" $ do
   where
     pdef = do
       f <- lowerIdent
-      xs <- many $ lowerIdent
+      xs <- many lowerIdent
       pKeyword "="
       e1 <- pExp
       return (f, xs, e1)
@@ -147,15 +144,17 @@ pBinOp :: Parser (Exp Text)
 pBinOp = makeExprParser pTerm opTable
 
 opTable :: [[Operator Parser (Exp Text)]]
-opTable = [
-  [ left "*" $ \s l h -> BinOp s Mul l h
-  , left "/" $ \s l h -> BinOp s Div l h]
+opTable =
+  [ [ neutral "==" $ \s l h -> BinOp s Eq l h
+    , neutral "/=" $ \s l h -> BinOp s Neq l h]
+  , [ left "*" $ \s l h -> BinOp s Mul l h
+    , left "/" $ \s l h -> BinOp s Div l h]
   , [ left "+" $ \s l h -> BinOp s Add l h
     , left "-" $ \s l h -> BinOp s Sub l h]
   ]
   where
     left name f = InfixL (getSourcePos >>= \s -> pOperator name >> return (f s))
-    -- neutral name f = InfixN (getSourcePos >>= \s -> pOperator name >> return (f s))
+    neutral name f = InfixN (getSourcePos >>= \s -> pOperator name >> return (f s))
     -- right name f = InfixR (getSourcePos >>= \s -> pOperator name >> return (f s))
     -- prefix name f = Prefix (getSourcePos >>= \s -> pOperator name >> return (f s))
     -- postfix name f = Postfix (getSourcePos >>= \s -> pOperator name >> return (f s))
@@ -210,6 +209,17 @@ pCase = label "case expression" $ do
 pAscribe :: Parser (Exp Text)
 pAscribe = Ascribe <$> getSourcePos <*> pTerm <* pKeyword "as" <*> pType
 
+pIf :: Parser (Exp Text)
+pIf = label "if expression" $ do
+  s <- getSourcePos
+  pKeyword "if"
+  c <- pExp
+  pKeyword "then"
+  t <- pExp
+  pKeyword "else"
+  f <- pExp
+  return $ If s c t f
+
 pExp :: Parser (Exp Text)
 pExp = try pAscribe
        <|>try pBinOp
@@ -218,6 +228,7 @@ pExp = try pAscribe
        <|> try pLet -- revert "let"
        <|> pLetRec
        <|> pCase
+       <|> pIf
        <|> do { s <- getSourcePos
               ; pOperator "-"
               ; BinOp s Sub (Int s 0) <$> pSingleExp }
