@@ -130,8 +130,8 @@ pLetRec = label "let rec" $ do
   LetRec s (f:fs) <$> pExp
   where
     pdef = do
-      f <- lexeme lowerIdent
-      xs <- many $ lexeme lowerIdent
+      f <- lowerIdent
+      xs <- many $ lowerIdent
       pKeyword "="
       e1 <- pExp
       return (f, xs, e1)
@@ -163,11 +163,33 @@ opTable = [
 pVarPat :: Parser (Pat Text)
 pVarPat = label "variable pattern" $ do
   s <- getSourcePos
-  x <- lexeme lowerIdent
+  x <- lowerIdent
   return $ VarP s x
+
+pRecordPat :: Parser (Pat Text)
+pRecordPat = label "record pattern" $ do
+  s <- getSourcePos
+  void $ symbol "{"
+  xs <- sepBy field (symbol ",")
+  void $ symbol "}"
+  return $ RecordP s xs
+  where
+    field = (,) <$> lowerIdent <* pOperator "=" <*> pPattern
+
+pVariantPat :: Parser (Pat Text)
+pVariantPat = label "variant pattern" $ do
+  s <- getSourcePos
+  void $ symbol "<"
+  x <- lowerIdent
+  pOperator "="
+  p <- pPattern
+  void $ symbol ">"
+  return $ VariantP s x p
 
 pPattern :: Parser (Pat Text)
 pPattern = pVarPat
+           <|> pRecordPat
+           <|> pVariantPat
 
 pCase :: Parser (Exp Text)
 pCase = label "case expression" $ do
