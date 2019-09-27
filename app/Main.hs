@@ -1,25 +1,26 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
-import Language.Griff.Syntax
-import Data.Maybe
-import Control.Monad.IO.Class
-import Data.Outputable
-import Language.Griff.Monad
-import Language.Griff.Typing.Monad
-import Language.Griff.Typing.Infer
-import Language.Griff.Parser
-import Language.Griff.Rename
-import Language.Griff.CodeGen
-import Text.Megaparsec
-import Data.String
+import           Control.Effect
+import           Control.Monad.IO.Class
+import           Data.Maybe
+import           Data.Outputable
+import           Data.String
+import           Language.Griff.CodeGen
+import           Language.Griff.Parser
+import           Language.Griff.Rename
+import           Language.Griff.Syntax
+import           Language.Griff.Typing.Infer
+import           Language.Griff.Typing.Monad
+import           Language.Griff.Uniq
+import           Text.Megaparsec
 
 main :: IO ()
 main = do
   src <- getContents
   let ast = parse pDecs "<stdin>" (fromString src)
   case ast of
-    Right ast -> runGriffT "<stdin>" $ do
+    Right ast -> runM $ runUniq $ do
       ast' <- rename ast
       typeEnv <- runInfer mempty (infer ast')
       liftIO $ print $ ppr ast'

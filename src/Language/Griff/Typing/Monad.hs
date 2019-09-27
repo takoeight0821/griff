@@ -1,37 +1,39 @@
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DataKinds                  #-}
-{-# LANGUAGE DefaultSignatures          #-}
-{-# LANGUAGE FlexibleContexts           #-}
-{-# LANGUAGE GADTs                      #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE TypeFamilies               #-}
+{-# LANGUAGE ConstraintKinds   #-}
+{-# LANGUAGE DataKinds         #-}
+{-# LANGUAGE DeriveGeneric     #-}
+{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE GADTs             #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeFamilies      #-}
 module Language.Griff.Typing.Monad
   ( TypeError(..)
   , Constraint
-  , MonadInfer(..)
+  , InferEff
   , addScheme
   , instantiate
   , generalize
   , runSolve
   , runInfer
   , closeOver
+  , lookup
+  , update
+  , getEnv
+  , fresh
   ) where
 
-import           Control.Monad.Except
-import           Control.Monad.Fail
-import           Control.Monad.Reader
-import           Control.Monad.State
+import           Control.Effect
+import           Control.Effect.Error
+import           Control.Effect.State
 import qualified Data.Map                    as Map
 import           Data.Outputable
 import qualified Data.Set                    as Set
 import           Data.Text                   (Text)
 import           GHC.Generics
 import           Language.Griff.Id
-import           Language.Griff.Monad
 import           Language.Griff.TypeRep
 import           Language.Griff.Typing.Env
 import           Language.Griff.Typing.Subst
+import           Language.Griff.Uniq
 import           Prelude                     hiding (lookup)
 
 data TypeError = UnificationFail Ty Ty
@@ -47,31 +49,32 @@ instance Outputable TypeError
 
 type Constraint = (Ty, Ty)
 
-class (Monad m, MonadError TypeError m, MonadFail m) => MonadInfer m where
-  lookup :: Id -> m Ty
-  default lookup :: (MonadInfer m', MonadTrans t, t m' ~ m) => Id -> m Ty
-  lookup = lift . lookup
+type InferEff sig = (Member (Error TypeError) sig, Member (State Env) sig, Member (State Uniq) sig)
 
-  update :: (Env -> Env) -> m ()
-  default update :: (MonadInfer m', MonadTrans t, t m' ~ m) => (Env -> Env) -> m ()
-  update = lift . update
+lookup :: (Carrier sig m, InferEff sig) => Id -> m Ty
+lookup x = do
+  Env env <- get
+  case Map.lookup x env of
+    Nothing -> throwError $ UnboundVariable x
+    Just s  -> instantiate s
 
-  getEnv :: m Env
-  default getEnv :: (MonadInfer m', MonadTrans t, t m' ~ m) => m Env
-  getEnv = lift getEnv
+update :: (Carrier sig m, InferEff sig) => (Env -> Env) -> m ()
+update = modify
 
-  fresh :: m Ty
-  default fresh :: (MonadInfer m', MonadTrans t, t m' ~ m) => m Ty
-  fresh = lift fresh
+getEnv :: (Carrier sig m, InferEff sig) => m Env
+getEnv = get
 
-instance MonadInfer m => MonadInfer (ReaderT r m)
+fresh :: (Carrier sig m, InferEff sig) => m Ty
+fresh = do
+  i <- newId "meta"
+  return $ TVar i
 
-addScheme :: MonadInfer m => (Id, Scheme) -> m ()
+addScheme :: (Carrier sig m, InferEff sig) => (Id, Scheme) -> m ()
 addScheme (x, sc) = do
   let scope e = remove e x `extend` (x, sc)
   update scope
 
-instantiate :: MonadInfer m => Scheme -> m Ty
+instantiate :: (Carrier sig m, InferEff sig) => Scheme -> m Ty
 instantiate (Forall as t) = do
   as' <- mapM (const fresh) as
   let s = Subst $ Map.fromList $ zip as as'
@@ -81,18 +84,18 @@ generalize :: Env -> Ty -> Scheme
 generalize env t = Forall as t
   where as = Set.toList $ ftv t `Set.difference` ftv env
 
-runSolve :: MonadError TypeError m => [(Ty, Ty)] -> m Subst
+runSolve :: (Carrier sig m, InferEff sig) => [(Ty, Ty)] -> m Subst
 runSolve cs = solver st
   where st = (mempty, cs)
 
-solver :: MonadError TypeError m => (Subst, [(Ty, Ty)]) -> m Subst
+solver :: (Carrier sig m, InferEff sig) => (Subst, [(Ty, Ty)]) -> m Subst
 solver (su, cs) = case cs of
   [] -> return su
   ((t1, t2) : cs0) -> do
     su1 <- unifies t1 t2
     solver (su1 `compose` su, apply su1 cs0)
 
-unifies :: MonadError TypeError m => Ty -> Ty -> m Subst
+unifies :: (Carrier sig m, InferEff sig) => Ty -> Ty -> m Subst
 unifies t1 t2 | t1 == t2 = return mempty
 unifies (TVar v) t = v `bind` t
 unifies t (TVar v) = v `bind` t
@@ -103,7 +106,7 @@ unifies (TVariant xs) (TVariant ys)
   | Map.keys xs == Map.keys ys = unifyMany (Map.elems xs) (Map.elems ys)
 unifies t1 t2 = throwError $ UnificationFail t1 t2
 
-unifyMany :: MonadError TypeError m => [Ty] -> [Ty] -> m Subst
+unifyMany :: (Carrier sig m, InferEff sig) => [Ty] -> [Ty] -> m Subst
 unifyMany [] [] = return mempty
 unifyMany (t1 : ts1) (t2 : ts2) = do
   su1 <- unifies t1 t2
@@ -114,7 +117,7 @@ unifyMany t1 t2 = throwError $ UnificationMismatch t1 t2
 compose :: Subst -> Subst -> Subst
 compose (Subst s1) (Subst s2) = Subst $ fmap (apply (Subst s1)) s2 `Map.union` s1
 
-bind :: MonadError TypeError m => Id -> Ty -> m Subst
+bind :: (Carrier sig m, InferEff sig) => Id -> Ty -> m Subst
 bind a t | t == TVar a = return mempty
          | occursCheck a t = throwError $ InfiniteType a t
          | otherwise = return $ Subst $ Map.singleton a t
@@ -122,23 +125,8 @@ bind a t | t == TVar a = return mempty
 occursCheck :: Substitutable a => Id -> a -> Bool
 occursCheck a t = a `Set.member` ftv t
 
-newtype Infer m a = Infer (StateT Env (ExceptT TypeError (GriffT m)) a)
-   deriving (Functor, Applicative, Monad, MonadError TypeError, MonadFail)
-
-instance (MonadIO m, MonadFail m) => MonadInfer (Infer m) where
-  lookup x = do
-    Env env <- Infer get
-    case Map.lookup x env of
-      Nothing -> throwError $ UnboundVariable x
-      Just s  -> instantiate s
-  update f = Infer $ modify f
-  getEnv = Infer get
-  fresh = Infer $ lift $ lift $ do
-    i <- newId "meta"
-    return $ TVar i
-
-runInfer :: Env -> Infer m a -> GriffT m (Either TypeError (a, Env))
-runInfer env (Infer m) = runExceptT $ runStateT m env
+runInfer :: Env -> StateC Env (ErrorC TypeError m) a -> m (Either TypeError (Env, a))
+runInfer env m = runError $ runState env m
 
 closeOver :: Ty -> Scheme
 closeOver = generalize mempty

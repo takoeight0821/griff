@@ -4,6 +4,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 module Language.Griff.Id where
 
+import Control.Effect
 import           Data.Data
 import           Data.Outputable
 import           Data.String
@@ -19,5 +20,5 @@ instance Outputable Id
 stringify :: IsString a => Id -> a
 stringify (Id text) = fromString $ unpack text
 
-newId :: HasUniq f => Text -> f Id
+newId :: (Carrier sig f, Member (State Uniq) sig) => Text -> f Id
 newId name = Id . (name <>) . pack . show <$> newUniq

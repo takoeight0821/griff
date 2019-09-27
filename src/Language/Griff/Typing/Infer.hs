@@ -5,9 +5,9 @@
 module Language.Griff.Typing.Infer where
 
 import           Control.Arrow
+import           Control.Effect.Error
+import           Control.Effect.Reader
 import           Control.Lens                hiding (op)
-import           Control.Monad.Except
-import           Control.Monad.Reader
 import qualified Data.Map                    as Map
 import           Data.Maybe
 import qualified Data.Set                    as Set
@@ -20,14 +20,17 @@ import           Language.Griff.Typing.Subst
 import           Prelude                     hiding (lookup)
 import           Text.Megaparsec.Pos
 
-newtype ConMap f = ConMap { unConMap :: Map.Map Id (ConMap f -> [Ty] -> f Ty) }
+newtype ConMap = ConMap { unConMap :: Map.Map Id ([Id], Type Id) }
   deriving (Semigroup, Monoid)
 
-convertType :: MonadError TypeError f => ConMap f -> Type Id -> f Ty
+convertType :: (Member (Error TypeError) sig, Carrier sig f) => ConMap -> Type Id -> f Ty
 convertType env (TyApp _ con args) =
   case Map.lookup con $ unConMap env of
     Nothing -> throwError $ UndefinedType con
-    Just k  -> k env =<< mapM (convertType env) args
+    Just (params, ty) -> do
+      args' <- mapM (convertType env) args
+      ty' <- convertType env ty
+      return $ apply (Subst $ Map.fromList $ zip params args') ty'
 convertType _ (TyVar _ a) = pure $ TVar a
 convertType env (TyArr _ t1 t2) = TArr <$> convertType env t1 <*> convertType env t2
 convertType _ (TyPrim _ p) = pure $ TPrim p
@@ -37,19 +40,16 @@ convertType env (TyVariant _ xs) = TVariant . Map.fromList <$> mapM (\(x, t) -> 
 toScheme :: Ty -> Scheme
 toScheme ty = Forall (Set.toList $ ftv ty) ty
 
-loadTypeAlias :: (MonadError TypeError m, Monad m) => (a, Id, [Id], Type Id) -> m (ConMap m)
-loadTypeAlias (_, con, args, ty) = do
-  let fun env xs = do
-        ty' <- convertType env ty
-        return $ apply (Subst $ Map.fromList $ zip args xs) ty'
-  return $ ConMap $ Map.singleton con fun
+loadTypeAlias :: (Member (Error TypeError) sig, Carrier sig m) => (a, Id, [Id], Type Id) -> m ConMap 
+loadTypeAlias (_, con, args, ty) = 
+  return $ ConMap $ Map.singleton con (args, ty)
 
-loadScSig :: MonadInfer m => ConMap m -> (a, Id, Type Id) -> m Constraint
+loadScSig :: (Carrier sig m, InferEff sig) => ConMap -> (a, Id, Type Id) -> m Constraint
 loadScSig env (_, x, t) = do
   tv <- lookup x
   (tv, ) <$> convertType env t
 
-infer :: MonadInfer m => [Dec Id] -> m ()
+infer :: (Carrier sig m, InferEff sig) => [Dec Id] -> m ()
 infer ds = do
   let scSigs = mapMaybe scSig ds
   let scDefs = mapMaybe scDef ds
@@ -61,7 +61,7 @@ infer ds = do
   cs0 <- mapM (loadScSig conMap) scSigs
   update =<< apply <$> runSolve cs0
 
-  flip runReaderT conMap $ do
+  runReader conMap $ do
     (ts, cs1) <- second mconcat . unzip <$> mapM inferDef scDefs
     sub <- runSolve cs1
     let scs = map (closeOver . apply sub) ts
@@ -78,13 +78,13 @@ infer ds = do
 
     prepare = mapM_ (\x -> fresh >>= \tv -> addScheme (x, Forall [] tv))
 
-inferDef :: MonadInfer m => (SourcePos, Id, [Id], Exp Id) -> ReaderT (ConMap m) m (Ty, [Constraint])
+inferDef :: (Carrier sig m, InferEff sig, Member (Reader ConMap) sig) => (SourcePos, Id, [Id], Exp Id) -> m (Ty, [Constraint])
 inferDef (s, f, xs, e) = do
   (t0, cs) <- inferExp $ foldr (Lambda s) e xs
   t1 <- lookup f
   return (t0, (t0, t1) : cs)
 
-inferExp :: MonadInfer m => Exp Id -> ReaderT (ConMap m) m (Ty, [Constraint])
+inferExp :: (Carrier sig m, InferEff sig, Member (Reader ConMap) sig) => Exp Id -> m (Ty, [Constraint])
 inferExp (Var _ a) = do
   t <- lookup a
   pure (t, [])
@@ -98,14 +98,17 @@ inferExp (Record _ xs) = do
 inferExp (Proj _ label _) = throwError $ UndecidableProj label
 inferExp (Ascribe _ (Proj _ label e) t) = do
   env <- ask
-  TVariant xs <- lift $ convertType env t
+  t' <- convertType env t
+  let xs = case t' of
+             TVariant xs -> xs 
+             _ -> error "unreachable"
   let valType = fromJust $ Map.lookup label xs
   (eType, cs) <- inferExp e
   pure (TVariant xs, (valType, eType) : cs)
 inferExp (Ascribe _ x t) = do
   (xt, cs) <- inferExp x
   env <- ask
-  t' <- lift $ convertType env t
+  t' <- convertType env t
   pure (xt, (xt, t') : cs)
 inferExp (Apply _ e1 e2) = do
   (e1Type, cs1) <- inferExp e1
@@ -157,7 +160,7 @@ inferExp (If _ c t f) = do
   (ft, fcs) <- inferExp f
   pure (tt, [(ct, TPrim TBool), (tt, ft)] <> ccs <> tcs <> fcs)
 
-ops :: MonadInfer m => Op -> m Ty
+ops :: (Carrier sig f, InferEff sig) => Op -> f Ty
 ops Add = pure (TPrim TInt `TArr` (TPrim TInt `TArr` TPrim TInt))
 ops Sub = pure (TPrim TInt `TArr` (TPrim TInt `TArr` TPrim TInt))
 ops Mul = pure (TPrim TInt `TArr` (TPrim TInt `TArr` TPrim TInt))

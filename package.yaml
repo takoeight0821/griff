@@ -21,21 +21,21 @@ description:         Please see the README on GitHub at <https://github.com/tako
 
 dependencies:
 - base >= 4.7 && < 5
-- capability
+- bytestring
 - containers
 - extra
 - fixed-vector
-- parser-combinators
+- fused-effects
 - generic-lens
 - lens
+- llvm-hs-pure
+- megaparsec
 - mtl
 - outputable
+- parser-combinators
 - prettyprinter
-- reflection
+# - reflection
 - text
-- megaparsec
-- llvm-hs-pure
-- bytestring
 
 ghc-options:
 - -Wall

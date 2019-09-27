@@ -1,16 +1,17 @@
-{-# LANGUAGE ConstraintKinds           #-}
-{-# LANGUAGE DataKinds                 #-}
+{-# OPTIONS_GHC -fno-warn-name-shadowing #-}
 {-# LANGUAGE FlexibleContexts          #-}
-{-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE TypeApplications          #-}
-module Language.Griff.Uniq where
+module Language.Griff.Uniq (Uniq, newUniq, runUniq) where
 
-import           Capability.State
+import Control.Effect.State
 
-type HasUniq m = HasState "uniq" Int m
+newtype Uniq = Uniq Int
+  deriving (Eq, Show)
 
-newUniq :: HasUniq m => m Int
+newUniq :: (Carrier sig m, Member (State Uniq) sig) => m Int
 newUniq = do
-  i <- get @"uniq"
-  modify @"uniq" (+1)
+  Uniq i <- get
+  modify (\_ -> Uniq (i + 1))
   return i
+
+runUniq :: Functor m => StateC Uniq m a -> m a
+runUniq = evalState (Uniq 0)

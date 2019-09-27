@@ -1,64 +1,68 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ConstraintKinds  #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TupleSections    #-}
 module Language.Griff.Rename where
 
+import           Control.Effect.Reader
+import           Control.Effect.State
 import           Control.Lens
-import           Control.Monad.Reader
+import           Control.Monad
 import           Data.Map              (Map)
 import qualified Data.Map              as Map
--- import           Data.Maybe            (fromJust)
 import qualified Data.Set              as Set
 import           Data.Text             (Text)
 import           Language.Griff.Id
-import           Language.Griff.Monad
 import           Language.Griff.Syntax
+import           Language.Griff.Uniq
 
-rename :: MonadIO m => [Dec Text] -> GriffT m [Dec Id]
-rename ds = flip runReaderT Map.empty $ do
+rename :: (Carrier sig m, Member (State Uniq) sig) => [Dec Text] -> m [Dec Id]
+rename ds = runReader (Map.empty :: Env) $ do
   env <- genTop $ map name ds
   local (env <>) $ mapM rnDec ds
   where
     name (ScSig _ x _)          = x
     name (ScDef _ x _ _)        = x
     name (TypeAliasDef _ x _ _) = x
-    genTop [] = ask
-    genTop (x : xs) =
-      withName x $ const $ genTop xs
 
+genTop :: (Carrier sig m, RnEff sig) => [Text] -> m Env
+genTop [] = ask 
+genTop (x : xs) =
+  withName x $ const $ genTop xs
+
+type RnEff sig = (Member (State Uniq) sig, Member (Reader Env) sig)
 type Env = Map Text Id
 
-type RnT m a = ReaderT Env (GriffT m) a
-
-withNewName :: MonadIO m => Text -> RnT m a -> RnT m a
+withNewName :: (Carrier sig m, RnEff sig) => Text -> m a -> m a
 withNewName x m = do
-  x' <- lift $ newId x
+  x' <- newId x
   local (Map.insert x x') m
 
-withNewNames :: MonadIO m => [Text] -> RnT m a -> RnT m a
+withNewNames :: (Carrier sig m, RnEff sig) => [Text] -> m a -> m a
 withNewNames xs m = do
-  xs' <- mapM (lift . newId) xs
+  xs' <- mapM newId xs
   local (Map.fromList (zip xs xs') <>) m
 
-lookupName :: Monad m => Text -> RnT m (Maybe Id)
+lookupName :: (Carrier sig m, RnEff sig) => Text -> m (Maybe Id)
 lookupName x =
   asks (Map.lookup x)
 
-lookupName' :: Monad m => Text -> RnT m Id
+lookupName' :: (Carrier sig m, RnEff sig) => Text -> m Id
 lookupName' x = do
   mx <- lookupName x
   case mx of
     Nothing -> error $ show x <> " is not defined"
     Just x' -> pure x'
 
-withName :: MonadIO m => Text -> (Id -> RnT m a) -> RnT m a
+withName :: (Carrier sig m, RnEff sig) => Text -> (Id -> m a) -> m a
 withName x k = do
   x' <- asks (Map.lookup x)
   case x' of
     Nothing -> withNewName x $
       lookupName' x >>= k
-    Just i -> k i
+    Just i -> k i 
 
-rnDec :: MonadIO m => Dec Text -> RnT m (Dec Id)
+rnDec :: (Carrier sig m, RnEff sig) => Dec Text -> m (Dec Id)
 rnDec (ScSig s x t) =
   ScSig s <$> lookupName' x <*> withNewNames (Set.toList (freeTyVars t)) (rnType t)
 rnDec (ScDef s x xs e) = withNewNames xs $
@@ -66,7 +70,7 @@ rnDec (ScDef s x xs e) = withNewNames xs $
 rnDec (TypeAliasDef s x xs t) = withNewNames xs $
   TypeAliasDef s <$> lookupName' x <*> mapM lookupName' xs <*> rnType t
 
-rnExp :: MonadIO m => Exp Text -> ReaderT Env (GriffT m) (Exp Id)
+rnExp :: (Carrier sig m, RnEff sig) => Exp Text -> m (Exp Id)
 rnExp (Var s x) = Var s <$> lookupName' x
 rnExp (Int s x) = pure $ Int s x
 rnExp (Bool s x) = pure $ Bool s x
@@ -83,7 +87,7 @@ rnExp (Let s f xs e1 e2) = withNewName f $ do
   withNewNames xs $
     Let s <$> lookupName' f <*> mapM lookupName' xs <*> rnExp e1 <*> pure e2'
 rnExp (LetRec s xs body) = do
-  env <- foldr (withNewName . view _1) ask xs
+  env :: Env <- foldr (withNewName . view _1) ask xs
   local (env <>) $
     LetRec s
       <$> forM xs (\(f, ps, e) ->
@@ -95,12 +99,12 @@ rnExp (Case s e cs) =
   Case s <$> rnExp e <*> mapM rnClause cs
 rnExp (If s c t f) = If s <$> rnExp c <*> rnExp t <*> rnExp f
 
-rnClause :: MonadIO m => (Pat Text, Exp Text) -> RnT m (Pat Id, Exp Id)
+rnClause :: (Carrier sig m, RnEff sig) => (Pat Text, Exp Text) -> m (Pat Id, Exp Id)
 rnClause (pat, e) = do
   (pat', env) <- rnPat pat
   local (env <>) $ (pat',) <$> rnExp e
 
-rnPat :: MonadIO m => Pat Text -> RnT m (Pat Id, Map Text Id)
+rnPat :: (Carrier sig m, RnEff sig) => Pat Text -> m (Pat Id, Map Text Id)
 rnPat (VarP s x) = withNewName x $ do
   x' <- lookupName' x
   pure (VarP s x', Map.fromList [(x, x')])
@@ -120,7 +124,7 @@ freeTyVars TyPrim{}         = Set.empty
 freeTyVars (TyRecord _ xs)  = Set.unions $ map (freeTyVars . snd) xs
 freeTyVars (TyVariant _ xs) = Set.unions $ map (freeTyVars . snd) xs
 
-rnType :: Monad m => Type Text -> RnT m (Type Id)
+rnType :: (Carrier sig f, RnEff sig) => Type Text -> f (Type Id)
 rnType (TyApp s con ts) = TyApp s <$> lookupName' con <*> mapM rnType ts
 rnType (TyVar s x) = TyVar s <$> lookupName' x
 rnType (TyArr s t1 t2) = TyArr s <$> rnType t1 <*> rnType t2
