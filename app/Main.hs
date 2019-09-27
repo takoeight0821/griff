@@ -18,7 +18,7 @@ import           Text.Megaparsec
 main :: IO ()
 main = do
   src <- getContents
-  let ast = parse pDecs "<stdin>" (fromString src)
+  let ast = parse (pDecs <* eof) "<stdin>" (fromString src)
   case ast of
     Right ast -> runM $ runUniq $ do
       ast' <- rename ast
