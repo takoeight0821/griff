@@ -50,7 +50,7 @@ reserved = void $ choice $ map (try . pKeyword) ["let", "in", "and", "rec", "fn"
 lowerIdent :: Parser Text
 lowerIdent = lexeme $ do
   notFollowedBy reserved
-  pack <$> ((:) <$> lowerChar <*> many alphaNumChar <?> "lower identifier")
+  pack <$> ((:) <$> (lowerChar <|> char '_') <*> many (alphaNumChar <|> char '_') <?> "lower identifier")
 
 upperIdent :: Parser Text
 upperIdent = lexeme $ do
@@ -70,7 +70,7 @@ pChar :: Parser (Exp Text)
 pChar = Char <$> getSourcePos <*> charLiteral <?> "char"
 
 pString :: Parser (Exp Text)
-pString = String <$> getSourcePos <*> stringLiteral <?> "string"
+pString = String <$> getSourcePos <*> lexeme stringLiteral <?> "string"
 
 pRecord :: Parser (Exp Text)
 pRecord = label "record" $ between (symbol "{") (symbol "}") $
@@ -275,8 +275,8 @@ pSingleType =
   <|> try (TyPrim <$> getSourcePos <* pKeyword "Char" <*> pure TChar)
   <|> try (TyPrim <$> getSourcePos <* pKeyword "String" <*> pure TString)
   <|> try (TyPrim <$> getSourcePos <* pKeyword "Bool" <*> pure TBool)
+  <|> pTyApp
   <|> TyVar <$> getSourcePos <*> lowerIdent
-  <|> TyApp <$> getSourcePos <*> upperIdent <*> pure []
   <|> pTyRecord
   <|> pTyVariant
   <|> between (symbol "(") (symbol ")") pType

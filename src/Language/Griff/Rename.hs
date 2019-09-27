@@ -44,8 +44,7 @@ withNewNames xs m = do
   local (Map.fromList (zip xs xs') <>) m
 
 lookupName :: (Carrier sig m, RnEff sig) => Text -> m (Maybe Id)
-lookupName x =
-  asks (Map.lookup x)
+lookupName x = asks (Map.lookup x)
 
 lookupName' :: (Carrier sig m, RnEff sig) => Text -> m Id
 lookupName' x = do

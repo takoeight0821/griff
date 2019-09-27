@@ -21,6 +21,7 @@ main = do
   let ast = parse (pDecs <* eof) "<stdin>" (fromString src)
   case ast of
     Right ast -> runM $ runUniq $ do
+      liftIO $ print $ ppr ast
       ast' <- rename ast
       typeEnv <- runInfer mempty (infer ast')
       liftIO $ print $ ppr ast'
