@@ -1,0 +1,47 @@
+fib n =
+  if n == 0 then 1
+  else fib (n - 1) + fib (n - 2);
+
+type List a = <nil : {} | cons : { car : a, cdr : List a} >;
+
+-- head : List a -> a;
+-- head lst =
+--   case lst of
+--     | <nil = _> -> error "nil"
+--     | <cons = { car = x, cdr = _ }> -> x;
+
+sum : List Int -> Int;
+sum lst =
+  case lst of
+    | <nil = _> -> 0
+    | <cons = { car = x, cdr = xs }> -> x + sum xs;
+
+-- sumAcc lst =
+--   let rec go lst acc =
+--     case lst of
+--     | <nil = _> -> acc
+--     | <cons = { car = x, cdr = xs }> -> go xs (x + acc)
+--   in go lst 0;
+
+-- evenOdd x =
+--   let rec even x =
+--     if x == 0 then true
+--     else odd (x - 1)
+--   and odd x =
+--     if x == 0 then false
+--     else even (x - 1)
+--   in { e = even x, o = odd x};
+
+-- type Option a = <none : {} | some : a>;
+
+-- noneC : Option a;
+-- noneC = <none = {}> as Option a;
+
+-- someC : a -> Option a;
+-- someC x = <some = x> as Option a;
+
+-- safeHead : List a -> Option a;
+-- safeHead lst =
+--   case lst of
+--     | <nil = _> -> <none = {}> as Option a
+--     | <cons = { car = x, cdr = _ }> -> <some = x> as Option a;
