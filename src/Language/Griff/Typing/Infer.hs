@@ -8,6 +8,7 @@ import           Control.Arrow
 import           Control.Effect.Error
 import           Control.Effect.Reader
 import           Control.Lens                hiding (op)
+import           Control.Monad.Fail
 import qualified Data.Map                    as Map
 import           Data.Maybe
 import qualified Data.Set                    as Set
@@ -23,33 +24,36 @@ import           Text.Megaparsec.Pos
 newtype ConMap = ConMap { unConMap :: Map.Map Id ([Id], Type Id) }
   deriving (Semigroup, Monoid)
 
-convertType :: (Member (Error TypeError) sig, Carrier sig f) => ConMap -> Type Id -> f Ty
-convertType env (TyApp _ con args) =
+convertType :: Type Id -> Ty
+convertType (TyApp _ con args) = TCon con $ map convertType args
+convertType (TyVar _ a) = TVar a
+convertType (TyArr _ t1 t2) = TArr (convertType t1) (convertType t2)
+convertType (TyPrim _ p) = TPrim p
+convertType (TyRecord _ xs) = TRecord $ Map.fromList $ map (\(x, t) -> (x,) $ convertType t) xs
+convertType (TyVariant _ xs) = TVariant $ Map.fromList $ map (\(x, t) -> (x,) $ convertType t) xs
+
+expandTCon :: (Carrier sig m, Member (Error TypeError) sig, Member (Reader ConMap) sig) => Ty -> m Ty
+expandTCon (TCon con args) = do
+  env <- ask
   case Map.lookup con $ unConMap env of
     Nothing -> throwError $ UndefinedType con
-    Just (params, ty) -> do
-      args' <- mapM (convertType env) args
-      ty' <- convertType env ty
-      return $ apply (Subst $ Map.fromList $ zip params args') ty'
-convertType _ (TyVar _ a) = pure $ TVar a
-convertType env (TyArr _ t1 t2) = TArr <$> convertType env t1 <*> convertType env t2
-convertType _ (TyPrim _ p) = pure $ TPrim p
-convertType env (TyRecord _ xs) = TRecord . Map.fromList <$> mapM (\(x, t) -> (x,) <$> convertType env t) xs
-convertType env (TyVariant _ xs) = TVariant . Map.fromList <$> mapM (\(x, t) -> (x,) <$> convertType env t) xs
+    Just (params, ty) ->
+      pure $ apply (Subst $ Map.fromList $ zip params args) (convertType ty)
+expandTCon t = pure t
 
 toScheme :: Ty -> Scheme
 toScheme ty = Forall (Set.toList $ ftv ty) ty
 
-loadTypeAlias :: (Member (Error TypeError) sig, Carrier sig m) => (a, Id, [Id], Type Id) -> m ConMap 
-loadTypeAlias (_, con, args, ty) = 
+loadTypeAlias :: (Member (Error TypeError) sig, Carrier sig m) => (a, Id, [Id], Type Id) -> m ConMap
+loadTypeAlias (_, con, args, ty) =
   return $ ConMap $ Map.singleton con (args, ty)
 
-loadScSig :: (Carrier sig m, InferEff sig) => ConMap -> (a, Id, Type Id) -> m Constraint
-loadScSig env (_, x, t) = do
+loadScSig :: (Carrier sig m, InferEff sig) => (a, Id, Type Id) -> m Constraint
+loadScSig (_, x, t) = do
   tv <- lookup x
-  (tv, ) <$> convertType env t
+  pure (tv, convertType t)
 
-infer :: (Carrier sig m, InferEff sig) => [Dec Id] -> m ()
+infer :: (Carrier sig m, InferEff sig, MonadFail m) => [Dec Id] -> m ()
 infer ds = do
   let scSigs = mapMaybe scSig ds
   let scDefs = mapMaybe scDef ds
@@ -58,7 +62,7 @@ infer ds = do
   conMap <- mconcat <$> mapM loadTypeAlias typeAliasDefs
 
   prepare (map (view _2) scDefs)
-  cs0 <- mapM (loadScSig conMap) scSigs
+  cs0 <- mapM loadScSig scSigs
   update =<< apply <$> runSolve cs0
 
   runReader conMap $ do
@@ -78,13 +82,13 @@ infer ds = do
 
     prepare = mapM_ (\x -> fresh >>= \tv -> addScheme (x, Forall [] tv))
 
-inferDef :: (Carrier sig m, InferEff sig, Member (Reader ConMap) sig) => (SourcePos, Id, [Id], Exp Id) -> m (Ty, [Constraint])
+inferDef :: (Carrier sig m, InferEff sig, Member (Reader ConMap) sig, MonadFail m) => (SourcePos, Id, [Id], Exp Id) -> m (Ty, [Constraint])
 inferDef (s, f, xs, e) = do
   (t0, cs) <- inferExp $ foldr (Lambda s) e xs
   t1 <- lookup f
   return (t0, (t0, t1) : cs)
 
-inferExp :: (Carrier sig m, InferEff sig, Member (Reader ConMap) sig) => Exp Id -> m (Ty, [Constraint])
+inferExp :: (Carrier sig m, InferEff sig, Member (Reader ConMap) sig, MonadFail m) => Exp Id -> m (Ty, [Constraint])
 inferExp (Var _ a) = do
   t <- lookup a
   pure (t, [])
@@ -97,19 +101,14 @@ inferExp (Record _ xs) = do
   pure (TRecord $ Map.fromList (zip (map fst xs) ts), cs)
 inferExp (Proj _ label _) = throwError $ UndecidableProj label
 inferExp (Ascribe _ (Proj _ label e) t) = do
-  env <- ask
-  t' <- convertType env t
-  let xs = case t' of
-             TVariant xs -> xs 
-             _ -> error "unreachable"
+  -- TODO: expand type constructor
+  TVariant xs <- expandTCon $ convertType t
   let valType = fromJust $ Map.lookup label xs
   (eType, cs) <- inferExp e
   pure (TVariant xs, (valType, eType) : cs)
 inferExp (Ascribe _ x t) = do
   (xt, cs) <- inferExp x
-  env <- ask
-  t' <- convertType env t
-  pure (xt, (xt, t') : cs)
+  pure (xt, (xt, convertType t) : cs)
 inferExp (Apply _ e1 e2) = do
   (e1Type, cs1) <- inferExp e1
   (e2Type, cs2) <- inferExp e2

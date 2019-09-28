@@ -21,12 +21,14 @@ instance Substitutable Ty where
   apply _ (TPrim a)          = TPrim a
   apply s (TRecord xs)       = TRecord $ fmap (apply s) xs
   apply s (TVariant xs)      = TVariant $ fmap (apply s) xs
+  apply s (TCon con xs)      = TCon con $ fmap (apply s) xs
 
   ftv (TVar a)       = Set.singleton a
   ftv (t1 `TArr` t2) = ftv t1 `Set.union` ftv t2
   ftv (TPrim _)       = Set.empty
   ftv (TRecord xs)   = Set.unions $ map ftv $ Map.elems xs
   ftv (TVariant xs)  = Set.unions $ map ftv $ Map.elems xs
+  ftv (TCon _ xs)    = Set.unions $ map ftv xs
 
 instance Substitutable Scheme where
   apply (Subst s) (Forall as t) = Forall as $ apply s' t

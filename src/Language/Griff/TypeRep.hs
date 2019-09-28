@@ -14,6 +14,7 @@ data Ty = TVar Id
         | TPrim TPrim
         | TRecord (Map Text Ty)
         | TVariant (Map Text Ty)
+        | TCon Id [Ty]
   deriving (Eq, Ord, Show, Generic, Data)
 
 instance Outputable Ty
