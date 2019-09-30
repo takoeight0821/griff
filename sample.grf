@@ -37,8 +37,8 @@ type Option a = <none : {} | some : a>;
 noneC : Option a;
 noneC = <none = {}> as Option a;
 
--- someC : a -> Option a;
--- someC x = <some = x> as Option a;
+someC : a -> Option a;
+someC a = <some = a> as Option a;
 
 -- safeHead : List a -> Option a;
 -- safeHead lst =
