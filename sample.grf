@@ -10,11 +10,11 @@ type List a = <nil : {} | cons : { car : a, cdr : List a} >;
 --     | <nil = _> -> error "nil"
 --     | <cons = { car = x, cdr = _ }> -> x;
 
-sum : List Int -> Int;
-sum lst =
-  case lst of
-    | <nil = _> -> 0
-    | <cons = { car = x, cdr = xs }> -> x + sum xs;
+-- sum : List Int -> Int;
+-- sum lst =
+--   case lst of
+--     | <nil = _> -> 0
+--     | <cons = { car = x, cdr = xs }> -> x + sum xs;
 
 -- sumAcc lst =
 --   let rec go lst acc =
@@ -32,10 +32,10 @@ sum lst =
 --     else even (x - 1)
 --   in { e = even x, o = odd x};
 
--- type Option a = <none : {} | some : a>;
+type Option a = <none : {} | some : a>;
 
--- noneC : Option a;
--- noneC = <none = {}> as Option a;
+noneC : Option a;
+noneC = <none = {}> as Option a;
 
 -- someC : a -> Option a;
 -- someC x = <some = x> as Option a;

@@ -1,50 +1,58 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE ConstraintKinds  #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TupleSections    #-}
+{-# LANGUAGE ConstraintKinds            #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE TemplateHaskell            #-}
+{-# LANGUAGE TupleSections              #-}
 module Language.Griff.Rename where
 
+import           Control.Effect
 import           Control.Effect.Reader
 import           Control.Effect.State
 import           Control.Lens
 import           Control.Monad
 import           Data.Map              (Map)
 import qualified Data.Map              as Map
+import           Data.Maybe
 import qualified Data.Set              as Set
 import           Data.Text             (Text)
 import           Language.Griff.Id
 import           Language.Griff.Syntax
 import           Language.Griff.Uniq
 
-rename :: (Carrier sig m, Member (State Uniq) sig) => [Dec Text] -> m [Dec Id]
-rename ds = runReader (Map.empty :: Env) $ do
+newtype TyVarEnv = TyVarEnv { _tyvarMap :: Map Id (Map Text Id) } deriving (Semigroup)
+makeLenses ''TyVarEnv
+newtype Env = Env { _nameMap :: Map Text Id } deriving (Semigroup)
+makeLenses ''Env
+
+type RnEff sig = (Member (State Uniq) sig, Member (Reader Env) sig, Member (State TyVarEnv) sig)
+
+rename :: (Carrier sig m, Effect sig, Member (State Uniq) sig) => [Dec Text] -> m [Dec Id]
+rename ds = evalState (TyVarEnv mempty) $ runReader (Env mempty) $ do
   env <- genTop $ map name ds
-  local (env <>) $ mapM rnDec ds
+  local (const env) $ mapM rnDec ds
   where
     name (ScSig _ x _)          = x
     name (ScDef _ x _ _)        = x
     name (TypeAliasDef _ x _ _) = x
 
 genTop :: (Carrier sig m, RnEff sig) => [Text] -> m Env
-genTop [] = ask 
+genTop [] = ask
 genTop (x : xs) =
   withName x $ const $ genTop xs
-
-type RnEff sig = (Member (State Uniq) sig, Member (Reader Env) sig)
-type Env = Map Text Id
 
 withNewName :: (Carrier sig m, RnEff sig) => Text -> m a -> m a
 withNewName x m = do
   x' <- newId x
-  local (Map.insert x x') m
+  local (over nameMap $ Map.insert x x') m
 
 withNewNames :: (Carrier sig m, RnEff sig) => [Text] -> m a -> m a
 withNewNames xs m = do
   xs' <- mapM newId xs
-  local (Map.fromList (zip xs xs') <>) m
+  local (over nameMap (Map.fromList (zip xs xs') <>)) m
 
 lookupName :: (Carrier sig m, RnEff sig) => Text -> m (Maybe Id)
-lookupName x = asks (Map.lookup x)
+lookupName x = asks (Map.lookup x . view nameMap)
 
 lookupName' :: (Carrier sig m, RnEff sig) => Text -> m Id
 lookupName' x = do
@@ -55,17 +63,26 @@ lookupName' x = do
 
 withName :: (Carrier sig m, RnEff sig) => Text -> (Id -> m a) -> m a
 withName x k = do
-  x' <- asks (Map.lookup x)
+  x' <- asks (Map.lookup x . view nameMap)
   case x' of
     Nothing -> withNewName x $
       lookupName' x >>= k
-    Just i -> k i 
+    Just i -> k i
 
 rnDec :: (Carrier sig m, RnEff sig) => Dec Text -> m (Dec Id)
-rnDec (ScSig s x t) =
-  ScSig s <$> lookupName' x <*> withNewNames (Set.toList (freeTyVars t)) (rnType t)
-rnDec (ScDef s x xs e) = withNewNames xs $
-  ScDef s <$> lookupName' x <*> mapM lookupName' xs <*> rnExp e
+rnDec (ScSig s x t) = do
+  x' <- lookupName' x
+  let fvs = Set.toList $ freeTyVars t
+  fvs' <- mapM newId fvs
+  let fvEnv = Map.fromList $ zip fvs fvs'
+  modify (over tyvarMap $ Map.insert x' fvEnv)
+  local (over nameMap (fvEnv <>)) $
+    ScSig s x' <$> rnType t
+rnDec (ScDef s x xs e) = withNewNames xs $ do
+  x' <- lookupName' x
+  fvEnv <- gets (fromMaybe mempty . Map.lookup x' . view tyvarMap)
+  local (over nameMap (fvEnv <>)) $
+    ScDef s x' <$> mapM lookupName' xs <*> rnExp e
 rnDec (TypeAliasDef s x xs t) = withNewNames xs $
   TypeAliasDef s <$> lookupName' x <*> mapM lookupName' xs <*> rnType t
 
@@ -101,7 +118,7 @@ rnExp (If s c t f) = If s <$> rnExp c <*> rnExp t <*> rnExp f
 rnClause :: (Carrier sig m, RnEff sig) => (Pat Text, Exp Text) -> m (Pat Id, Exp Id)
 rnClause (pat, e) = do
   (pat', env) <- rnPat pat
-  local (env <>) $ (pat',) <$> rnExp e
+  local (over nameMap (env <>)) $ (pat',) <$> rnExp e
 
 rnPat :: (Carrier sig m, RnEff sig) => Pat Text -> m (Pat Id, Map Text Id)
 rnPat (VarP s x) = withNewName x $ do

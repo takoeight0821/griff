@@ -101,11 +101,10 @@ inferExp (Record _ xs) = do
   pure (TRecord $ Map.fromList (zip (map fst xs) ts), cs)
 inferExp (Proj _ label _) = throwError $ UndecidableProj label
 inferExp (Ascribe _ (Proj _ label e) t) = do
-  -- TODO: expand type constructor
   TVariant xs <- expandTCon $ convertType t
   let valType = fromJust $ Map.lookup label xs
   (eType, cs) <- inferExp e
-  pure (TVariant xs, (valType, eType) : cs)
+  pure (convertType t, (valType, eType) : cs)
 inferExp (Ascribe _ x t) = do
   (xt, cs) <- inferExp x
   pure (xt, (xt, convertType t) : cs)
