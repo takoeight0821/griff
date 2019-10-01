@@ -183,7 +183,9 @@ pVariantPat = label "variant pattern" $ do
   pOperator "="
   p <- pPattern
   void $ symbol ">"
-  return $ VariantP s x p
+  pKeyword "as"
+  ty <- pType
+  return $ VariantP s x p ty
 
 pPattern :: Parser (Pat Text)
 pPattern = pVarPat
@@ -202,7 +204,7 @@ pCase = label "case expression" $ do
     clause = do
       pOperator "|"
       pat <- pPattern
-      pOperator "->"
+      pOperator "=>"
       e <- pExp
       return (pat, e)
 

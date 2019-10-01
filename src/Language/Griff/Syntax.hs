@@ -47,8 +47,8 @@ instance Outputable Op
 
 data Pat a = VarP SourcePos a
            | RecordP SourcePos [(Text, Pat a)]
-           | VariantP SourcePos Text (Pat a)
-  deriving (Eq, Ord, Show, Generic, Data, Foldable)
+           | VariantP SourcePos Text (Pat a) (Type a)
+  deriving (Eq, Ord, Show, Generic, Data)
 
 instance Outputable a => Outputable (Pat a)
 

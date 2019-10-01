@@ -149,9 +149,10 @@ rnPat (VarP s x) = withNewName x $ do
 rnPat (RecordP s xs) = do
   (ps, ns) <- unzip <$> mapM (rnPat . snd) xs
   pure (RecordP s (zip (map fst xs) ps), Map.unions ns)
-rnPat (VariantP s x p) = do
+rnPat (VariantP s x p ty) = do
   (p', n) <- rnPat p
-  pure (VariantP s x p', n)
+  ty' <- rnType ty
+  pure (VariantP s x p' ty', n)
 
 freeTyVars :: Ord a => Type a -> Set.Set a
 freeTyVars (TyApp _ _ ts)   = Set.unions $ map freeTyVars ts

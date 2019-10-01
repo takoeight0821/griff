@@ -4,10 +4,13 @@
 {-# LANGUAGE TupleSections              #-}
 module Language.Griff.Typing.Infer where
 
+import           Debug.Trace
+
 import           Control.Arrow
 import           Control.Effect.Error
 import           Control.Effect.Reader
 import           Control.Lens                hiding (op)
+import           Control.Monad
 import           Control.Monad.Fail
 import qualified Data.Map                    as Map
 import           Data.Maybe
@@ -97,6 +100,7 @@ inferExp Bool{} = pure (TPrim TBool, [])
 inferExp Char{} = pure (TPrim TChar, [])
 inferExp String{} = pure (TPrim TString, [])
 inferExp (Record _ xs) = do
+  -- 読みにくすぎひん？
   (ts, cs) <- second mconcat . unzip <$> mapM (inferExp . snd) xs
   pure (TRecord $ Map.fromList (zip (map fst xs) ts), cs)
 inferExp (Proj _ label _) = throwError $ UndecidableProj label
@@ -157,6 +161,35 @@ inferExp (If _ c t f) = do
   (tt, tcs) <- inferExp t
   (ft, fcs) <- inferExp f
   pure (tt, [(ct, TPrim TBool), (tt, ft)] <> ccs <> tcs <> fcs)
+inferExp (Case _ e clauses) = do
+  (et, ecs) <- inferExp e
+  xs <- mapM (inferClause et) clauses
+  let t:ts = map fst xs -- 空のcaseは想定しない
+  let cs0 = concatMap snd xs
+  let cs1 = map (t,) ts
+  pure (t, cs1 <> cs0 <> ecs)
+
+inferClause :: (Carrier sig m, InferEff sig, Member (Reader ConMap) sig, MonadFail m) => Ty -> (Pat Id, Exp Id) -> m (Ty, [Constraint])
+inferClause t0 (pat, e) = do
+  cs0 <- inferPat t0 pat
+  (eTy, cs1) <- inferExp e
+  pure (eTy, cs1 <> cs0)
+
+inferPat :: (Carrier sig m, InferEff sig, Member (Reader ConMap) sig, MonadFail m) => Ty -> Pat Id -> m [Constraint]
+inferPat t0 (VarP _ x) = do
+  tv <- fresh
+  addScheme (x, Forall [] tv)
+  pure [(t0, tv)]
+inferPat t0 (RecordP _ xs) = do
+  ts <- mapM (const fresh) xs
+  let ty = TRecord $ Map.fromList $ zip (map fst xs) ts
+  cs <- concat <$> zipWithM inferPat ts (map snd xs)
+  pure $ (t0, ty) : cs
+inferPat t0 (VariantP _ label x ty) = do
+  TVariant xs <- expandTCon $ convertType ty
+  let Just valType = Map.lookup label xs
+  cs <- inferPat valType x
+  pure $ (t0, convertType ty) : cs
 
 ops :: (Carrier sig f, InferEff sig) => Op -> f Ty
 ops Add = pure (TPrim TInt `TArr` (TPrim TInt `TArr` TPrim TInt))
