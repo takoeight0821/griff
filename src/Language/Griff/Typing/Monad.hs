@@ -33,7 +33,6 @@ import           Language.Griff.Id
 import           Language.Griff.TypeRep
 import           Language.Griff.Typing.Env
 import           Language.Griff.Typing.Subst
-import           Language.Griff.Uniq
 import           Prelude                     hiding (lookup)
 
 data TypeError = UnificationFail Ty Ty
@@ -49,7 +48,7 @@ instance Outputable TypeError
 
 type Constraint = (Ty, Ty)
 
-type InferEff sig = (Member (Error TypeError) sig, Member (State Env) sig, Member (State Uniq) sig)
+type InferEff sig = (Member (Error TypeError) sig, Member (State Env) sig, Member Fresh sig)
 
 lookup :: (Carrier sig m, InferEff sig) => Id -> m Ty
 lookup x = do

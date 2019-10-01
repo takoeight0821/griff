@@ -20,5 +20,5 @@ instance Outputable Id
 stringify :: IsString a => Id -> a
 stringify (Id text) = fromString $ unpack text
 
-newId :: (Carrier sig f, Member (State Uniq) sig) => Text -> f Id
+newId :: (Carrier sig f, Member Fresh sig) => Text -> f Id
 newId name = Id . (name <>) . pack . show <$> newUniq

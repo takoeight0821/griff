@@ -22,7 +22,6 @@ import qualified Data.Set              as Set
 import           Data.Text             (Text)
 import           Language.Griff.Id
 import           Language.Griff.Syntax
-import           Language.Griff.Uniq
 
 newtype TyVarEnv = TyVarEnv { _tyvarBinderMap :: Map Id (Map Text Id) }
 makeLenses ''TyVarEnv
@@ -38,9 +37,9 @@ makeLenses ''Env
 instance Semigroup Env where
   (Env n1 t1) <> (Env n2 t2) = Env (n1 <> n2) (t1 <> t2)
 
-type RnEff sig = (Member (State Uniq) sig, Member (Reader Env) sig, Member (State TyVarEnv) sig)
+type RnEff sig = (Member Fresh sig, Member (Reader Env) sig, Member (State TyVarEnv) sig)
 
-rename :: (Carrier sig m, Effect sig, Member (State Uniq) sig) => [Dec Text] -> m [Dec Id]
+rename :: (Carrier sig m, Effect sig, Member Fresh sig) => [Dec Text] -> m [Dec Id]
 rename ds = evalState (TyVarEnv mempty) $ runReader (Env mempty mempty) $ do
   env <- genTop $ map name ds
   trace (show env) (pure ())
@@ -50,25 +49,25 @@ rename ds = evalState (TyVarEnv mempty) $ runReader (Env mempty mempty) $ do
     name (ScDef _ x _ _)        = x
     name (TypeAliasDef _ x _ _) = x
 
-genTop :: (Carrier sig m, Foldable t, Member (Reader Env) sig, Member (State Uniq) sig) => t Text -> m Env
+genTop :: (Carrier sig m, Foldable t, Member (Reader Env) sig, Member Fresh sig) => t Text -> m Env
 genTop = foldr withNewName (ask @Env)
 
-withNewName :: (Carrier sig m, Member (Reader Env) sig, Member (State Uniq) sig) => Text -> m b -> m b
+withNewName :: (Carrier sig m, Member (Reader Env) sig, Member Fresh sig) => Text -> m b -> m b
 withNewName x m = do
   x' <- newId x
   local (over nameMap $ Map.insert x x') m
 
-withNewNames :: (Carrier sig m, Member (Reader Env) sig, Member (State Uniq) sig) => [Text] -> m b -> m b
+withNewNames :: (Carrier sig m, Member (Reader Env) sig, Member Fresh sig) => [Text] -> m b -> m b
 withNewNames xs m = do
   xs' <- mapM newId xs
   local (over nameMap (Map.fromList (zip xs xs') <>)) m
 
-withNewTyvar :: (Carrier sig m, Member (Reader Env) sig, Member (State Uniq) sig) => Text -> m b -> m b
+withNewTyvar :: (Carrier sig m, Member (Reader Env) sig, Member Fresh sig) => Text -> m b -> m b
 withNewTyvar x m = do
   x' <- newId x
   local (over tyvarMap $ Map.insert x x') m
 
-withNewTyvars :: (Carrier sig m, Member (Reader Env) sig, Member (State Uniq) sig) => [Text] -> m b -> m b
+withNewTyvars :: (Carrier sig m, Member (Reader Env) sig, Member Fresh sig) => [Text] -> m b -> m b
 withNewTyvars xs m = do
   xs' <- mapM newId xs
   local (over tyvarMap (Map.fromList (zip xs xs') <>)) m
@@ -85,7 +84,7 @@ lookupTyvar x = asks (Map.lookup x . view tyvarMap)
 lookupTyvar' :: (Carrier sig f, Member (Reader Env) sig) => Text -> f Id
 lookupTyvar' x = fromMaybe (error (show x <> " is not defined (tyvar)")) <$> lookupTyvar x
 
-withName :: (Carrier sig m, Member (Reader Env) sig, Member (State Uniq) sig) => Text -> (Id -> m a) -> m a
+withName :: (Carrier sig m, Member (Reader Env) sig, Member Fresh sig) => Text -> (Id -> m a) -> m a
 withName x k = do
   x' <- asks (Map.lookup x . view nameMap)
   case x' of
@@ -93,7 +92,7 @@ withName x k = do
       lookupName' x >>= k
     Just i -> k i
 
-rnDec :: (Carrier sig m, Member (Reader Env) sig, Member (State Uniq) sig, Member (State TyVarEnv) sig) => Dec Text -> m (Dec Id)
+rnDec :: (Carrier sig m, Member (Reader Env) sig, Member Fresh sig, Member (State TyVarEnv) sig) => Dec Text -> m (Dec Id)
 rnDec (ScSig s x t) = do
   x' <- lookupName' x
 
@@ -114,7 +113,7 @@ rnDec (ScDef s x xs e) = withNewNames xs $ do
 rnDec (TypeAliasDef s x xs t) = withNewTyvars xs $
   TypeAliasDef s <$> lookupName' x <*> mapM lookupTyvar' xs <*> rnType t
 
-rnExp :: (Carrier sig f, Member (Reader Env) sig, Member (State TyVarEnv) sig, Member (State Uniq) sig) => Exp Text -> f (Exp Id)
+rnExp :: (Carrier sig f, Member (Reader Env) sig, Member (State TyVarEnv) sig, Member Fresh sig) => Exp Text -> f (Exp Id)
 rnExp (Var s x) = Var s <$> lookupName' x
 rnExp (Int s x) = pure $ Int s x
 rnExp (Bool s x) = pure $ Bool s x
@@ -143,12 +142,12 @@ rnExp (Case s e cs) =
   Case s <$> rnExp e <*> mapM rnClause cs
 rnExp (If s c t f) = If s <$> rnExp c <*> rnExp t <*> rnExp f
 
-rnClause :: (Carrier sig m, Member (Reader Env) sig, Member (State Uniq) sig, Member (State TyVarEnv) sig) => (Pat Text, Exp Text) -> m (Pat Id, Exp Id)
+rnClause :: (Carrier sig m, Member (Reader Env) sig, Member Fresh sig, Member (State TyVarEnv) sig) => (Pat Text, Exp Text) -> m (Pat Id, Exp Id)
 rnClause (pat, e) = do
   (pat', env) <- rnPat pat
   local (over nameMap (env <>)) $ (pat',) <$> rnExp e
 
-rnPat :: (Carrier sig m, Member (Reader Env) sig, Member (State Uniq) sig) => Pat Text -> m (Pat Id, Map Text Id)
+rnPat :: (Carrier sig m, Member (Reader Env) sig, Member Fresh sig) => Pat Text -> m (Pat Id, Map Text Id)
 rnPat (VarP s x) = withNewName x $ do
   x' <- lookupName' x
   pure (VarP s x', Map.fromList [(x, x')])
