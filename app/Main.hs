@@ -1,15 +1,13 @@
+{-# OPTIONS_GHC -fno-warn-name-shadowing #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
 import           Control.Effect
 import           Control.Monad.IO.Class
-import           Data.Maybe
 import           Data.Outputable
 import           Data.String
-import           Language.Griff.CodeGen
 import           Language.Griff.Parser
 import           Language.Griff.Rename
-import           Language.Griff.Syntax
 import           Language.Griff.Typing.Infer
 import           Language.Griff.Typing.Monad
 import           Language.Griff.Uniq
@@ -26,10 +24,4 @@ main = do
       typeEnv <- runInfer mempty (infer ast')
       liftIO $ print $ ppr ast'
       liftIO $ print $ ppr typeEnv
-      let scs = mapMaybe scDef ast'
-      liftIO $ codegen scs
     Left err -> liftIO $ putStrLn $ errorBundlePretty err
-
-  where
-    scDef (ScDef _ f xs e) = Just (f, xs, e)
-    scDef _                = Nothing
