@@ -8,8 +8,6 @@
 {-# LANGUAGE TypeApplications           #-}
 module Language.Griff.Rename where
 
-import           Debug.Trace
-
 import           Control.Effect
 import           Control.Effect.Reader
 import           Control.Effect.State
@@ -42,7 +40,6 @@ type RnEff sig = (Member Fresh sig, Member (Reader Env) sig, Member (State TyVar
 rename :: (Carrier sig m, Effect sig, Member Fresh sig) => [Dec Text] -> m [Dec Id]
 rename ds = evalState (TyVarEnv mempty) $ runReader (Env mempty mempty) $ do
   env <- genTop $ map name ds
-  trace (show env) (pure ())
   local (const env) $ mapM rnDec ds
   where
     name (ScSig _ x _)          = x
@@ -104,8 +101,6 @@ rnDec (ScSig s x t) = do
   local (over tyvarMap (fvEnv <>)) $
     ScSig s x' <$> rnType t
 rnDec (ScDef s x xs e) = withNewNames xs $ do
-  env@Env{} <- ask
-  trace (show env) (pure ())
   x' <- lookupName' x
   fvEnv <- gets (fromMaybe mempty . Map.lookup x' . view tyvarBinderMap)
   local (over tyvarMap (fvEnv <>)) $
