@@ -1,8 +1,6 @@
 packages:
 - .
 extra-deps:
-- capability-0.2.0.0
-- llvm-hs-pure-8.0.0
 - size: 4511
   github: takoeight0821/outputable
   sha256: ebb447aab0e225d9a31a4c8a56609ba7d44f82ca7def1398dabea2ae74032245

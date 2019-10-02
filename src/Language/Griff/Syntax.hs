@@ -1,7 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE DataKinds          #-}
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveFoldable     #-}
 {-# LANGUAGE DeriveGeneric      #-}
 {-# LANGUAGE EmptyDataDeriving  #-}
 {-# LANGUAGE KindSignatures     #-}

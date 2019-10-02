@@ -4,8 +4,6 @@
 {-# LANGUAGE TupleSections              #-}
 module Language.Griff.Typing.Infer where
 
-import           Debug.Trace
-
 import           Control.Arrow
 import           Control.Effect.Error
 import           Control.Effect.Reader
@@ -19,6 +17,7 @@ import           Data.Tuple.Extra            (uncurry3)
 import           Language.Griff.Id
 import           Language.Griff.Syntax
 import           Language.Griff.TypeRep
+import           Language.Griff.Typing.Env
 import           Language.Griff.Typing.Monad
 import           Language.Griff.Typing.Subst
 import           Prelude                     hiding (lookup)
@@ -69,7 +68,7 @@ infer ds = do
   update =<< apply <$> runSolve cs0
 
   runReader conMap $ do
-    (ts, cs1) <- second mconcat . unzip <$> mapM inferDef scDefs
+    (ts, cs1) <- second mconcat <$> mapAndUnzipM inferDef scDefs
     sub <- runSolve cs1
     let scs = map (closeOver . apply sub) ts
     mapM_ addScheme (zip (map (view _2) scDefs) scs)
@@ -100,9 +99,11 @@ inferExp Bool{} = pure (TPrim TBool, [])
 inferExp Char{} = pure (TPrim TChar, [])
 inferExp String{} = pure (TPrim TString, [])
 inferExp (Record _ xs) = do
-  -- 読みにくすぎひん？
-  (ts, cs) <- second mconcat . unzip <$> mapM (inferExp . snd) xs
-  pure (TRecord $ Map.fromList (zip (map fst xs) ts), cs)
+  (ts, cs) <- second mconcat <$> mapAndUnzipM inferExp values
+  pure (TRecord $ Map.fromList (zip labels ts), cs)
+  where
+    labels = map fst xs
+    values = map snd xs
 inferExp (Proj _ label _) = throwError $ UndecidableProj label
 inferExp (Ascribe _ (Proj _ label e) t) = do
   TVariant xs <- expandTCon $ convertType t
@@ -124,14 +125,8 @@ inferExp (Lambda _ x e) = do
   pure (TArr tv eType, cs)
 inferExp (Let s f xs e1 e2) = do
   env <- getEnv
-
   (t1, cs1) <- inferExp $ foldr (Lambda s) e1 xs
-  sub <- runSolve cs1
-
-  let sc = generalize (apply sub env) (apply sub t1)
-  addScheme (f, sc)
-  update (apply sub)
-
+  letVar env f t1 cs1
   (t2, cs2) <- inferExp e2
   pure (t2, cs1 <> cs2)
 inferExp (LetRec s ds e2) = do
@@ -145,10 +140,7 @@ inferExp (LetRec s ds e2) = do
     inferRec env f xs e = do
       (t0, cs0) <- inferExp $ foldr (Lambda s) e xs
       tv <- lookup f
-      sub <- runSolve ((t0, tv) : cs0)
-      let sc = generalize (apply sub env) (apply sub t0)
-      addScheme (f, sc)
-      update (apply sub)
+      letVar env f t0 $ (t0, tv) : cs0
       pure ((t0, tv) : cs0)
 inferExp (BinOp _ op e1 e2) = do
   (e1t, e1cs) <- inferExp e1
@@ -209,3 +201,10 @@ ops Gt = pure (TPrim TInt `TArr` (TPrim TInt `TArr` TPrim TBool))
 ops Ge = pure (TPrim TInt `TArr` (TPrim TInt `TArr` TPrim TBool))
 ops And = pure (TPrim TBool `TArr` (TPrim TBool `TArr` TPrim TBool))
 ops Or = pure (TPrim TBool `TArr` (TPrim TBool `TArr` TPrim TBool))
+
+letVar :: (Carrier sig m, InferEff sig) => Env -> Id -> Ty -> [Constraint] -> m ()
+letVar env var ty cs = do
+  sub <- runSolve cs
+  let sc = generalize (apply sub env) (apply sub ty)
+  addScheme (var, sc)
+  update (apply sub)
