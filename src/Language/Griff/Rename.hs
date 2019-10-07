@@ -6,7 +6,7 @@
 {-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE TypeApplications           #-}
-module Language.Griff.Rename where
+module Language.Griff.Rename (rename) where
 
 import           Control.Effect
 import           Control.Effect.Reader
@@ -35,8 +35,6 @@ makeLenses ''Env
 instance Semigroup Env where
   (Env n1 t1) <> (Env n2 t2) = Env (n1 <> n2) (t1 <> t2)
 
-type RnEff sig = (Member Fresh sig, Member (Reader Env) sig, Member (State TyVarEnv) sig)
-
 rename :: (Carrier sig m, Effect sig, Member Fresh sig) => [Dec Text] -> m [Dec Id]
 rename ds = evalState (TyVarEnv mempty) $ runReader (Env mempty mempty) $ do
   env <- genTop $ map name ds
@@ -59,11 +57,6 @@ withNewNames xs m = do
   xs' <- mapM newId xs
   local (over nameMap (Map.fromList (zip xs xs') <>)) m
 
-withNewTyvar :: (Carrier sig m, Member (Reader Env) sig, Member Fresh sig) => Text -> m b -> m b
-withNewTyvar x m = do
-  x' <- newId x
-  local (over tyvarMap $ Map.insert x x') m
-
 withNewTyvars :: (Carrier sig m, Member (Reader Env) sig, Member Fresh sig) => [Text] -> m b -> m b
 withNewTyvars xs m = do
   xs' <- mapM newId xs
@@ -80,14 +73,6 @@ lookupTyvar x = asks (Map.lookup x . view tyvarMap)
 
 lookupTyvar' :: (Carrier sig f, Member (Reader Env) sig) => Text -> f Id
 lookupTyvar' x = fromMaybe (error (show x <> " is not defined (tyvar)")) <$> lookupTyvar x
-
-withName :: (Carrier sig m, Member (Reader Env) sig, Member Fresh sig) => Text -> (Id -> m a) -> m a
-withName x k = do
-  x' <- asks (Map.lookup x . view nameMap)
-  case x' of
-    Nothing -> withNewName x $
-      lookupName' x >>= k
-    Just i -> k i
 
 rnDec :: (Carrier sig m, Member (Reader Env) sig, Member Fresh sig, Member (State TyVarEnv) sig) => Dec Text -> m (Dec Id)
 rnDec (ScSig s x t) = do

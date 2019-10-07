@@ -2,7 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TupleSections              #-}
-module Language.Griff.Typing.Infer where
+module Language.Griff.Typing.Infer (infer) where
 
 import           Control.Arrow
 import           Control.Effect.Error
@@ -12,12 +12,10 @@ import           Control.Monad
 import           Control.Monad.Fail
 import qualified Data.Map                    as Map
 import           Data.Maybe
-import qualified Data.Set                    as Set
 import           Data.Tuple.Extra            (uncurry3)
 import           Language.Griff.Id
 import           Language.Griff.Syntax
 import           Language.Griff.TypeRep
-import           Language.Griff.Typing.Env
 import           Language.Griff.Typing.Monad
 import           Language.Griff.Typing.Subst
 import           Prelude                     hiding (lookup)
@@ -42,9 +40,6 @@ expandTCon (TCon con args) = do
     Just (params, ty) ->
       pure $ apply (Subst $ Map.fromList $ zip params args) (convertType ty)
 expandTCon t = pure t
-
-toScheme :: Ty -> Scheme
-toScheme ty = Forall (Set.toList $ ftv ty) ty
 
 loadTypeAlias :: (Member (Error TypeError) sig, Carrier sig m) => (a, Id, [Id], Type Id) -> m ConMap
 loadTypeAlias (_, con, args, ty) =

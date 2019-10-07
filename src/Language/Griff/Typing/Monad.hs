@@ -8,6 +8,7 @@
 module Language.Griff.Typing.Monad
   ( TypeError(..)
   , Constraint
+  , Env
   , InferEff
   , addScheme
   , instantiate
@@ -31,7 +32,6 @@ import           Data.Text                   (Text)
 import           GHC.Generics
 import           Language.Griff.Id
 import           Language.Griff.TypeRep
-import           Language.Griff.Typing.Env
 import           Language.Griff.Typing.Subst
 import           Prelude                     hiding (lookup)
 
@@ -48,11 +48,13 @@ instance Outputable TypeError
 
 type Constraint = (Ty, Ty)
 
+type Env = Map.Map Id Scheme
+
 type InferEff sig = (Member (Error TypeError) sig, Member (State Env) sig, Member Fresh sig)
 
 lookup :: (Carrier sig m, InferEff sig) => Id -> m Ty
 lookup x = do
-  Env env <- get
+  env <- get
   case Map.lookup x env of
     Nothing -> throwError $ UnboundVariable x
     Just s  -> instantiate s
@@ -70,7 +72,7 @@ fresh = do
 
 addScheme :: (Carrier sig m, InferEff sig) => (Id, Scheme) -> m ()
 addScheme (x, sc) = do
-  let scope e = remove e x `extend` (x, sc)
+  let scope e = Map.insert x sc $ Map.delete x e 
   update scope
 
 instantiate :: (Carrier sig m, InferEff sig) => Scheme -> m Ty

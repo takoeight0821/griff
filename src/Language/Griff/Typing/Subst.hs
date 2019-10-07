@@ -1,5 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Language.Griff.Typing.Subst where
+module Language.Griff.Typing.Subst (Substitutable(..), Subst(..)) where
 
 import           Data.Map               (Map)
 import qualified Data.Map               as Map
@@ -25,7 +25,7 @@ instance Substitutable Ty where
 
   ftv (TVar a)       = Set.singleton a
   ftv (t1 `TArr` t2) = ftv t1 `Set.union` ftv t2
-  ftv (TPrim _)       = Set.empty
+  ftv (TPrim _)      = Set.empty
   ftv (TRecord xs)   = Set.unions $ map ftv $ Map.elems xs
   ftv (TVariant xs)  = Set.unions $ map ftv $ Map.elems xs
   ftv (TCon _ xs)    = Set.unions $ map ftv xs
@@ -42,3 +42,7 @@ instance (Substitutable a, Substitutable b) => Substitutable (a, b) where
 instance Substitutable a => Substitutable [a] where
   apply = map . apply
   ftv = foldr (Set.union . ftv) Set.empty
+
+instance Substitutable v => Substitutable (Map k v) where
+  apply s = fmap (apply s)
+  ftv = ftv . Map.elems
