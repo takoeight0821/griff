@@ -9,14 +9,13 @@ import           GHC.Generics
 import           Language.Griff.Id
 import           Language.Griff.TypeRep
 
-type Env = Map Id Scheme
-
 data Exp = Var Id
          | Int Integer
          | Char Char
          | String Text
          | Bool Bool
          | Record [(Text, Exp)]
+         | Proj Text Exp (Map Text Ty)
          | Apply Exp Exp
          | Lambda Id Exp
          | Let Id Exp Exp
@@ -33,8 +32,12 @@ data Op = Add | Sub | Mul | Div | Mod | Eq | Neq
 data Pat = VarP Id
          | BoolP Bool
          | RecordP [(Text, Pat)]
-         | VariantP Text Pat
+         | VariantP Text Pat (Map Text Ty)
   deriving (Eq, Show, Generic, Outputable)
 
-data Dec = ScDef Id Exp
-  deriving (Eq, Show, Generic, Outputable)
+data Toplevel = Toplevel
+  { _scDef   :: [(Id, Exp)]
+  , _env     :: Map Id Scheme
+  , _typeDef :: [(Id, [Id], Ty)]
+  } deriving (Eq, Show, Generic, Outputable)
+

@@ -2,7 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TupleSections              #-}
-module Language.Griff.Typing.Infer (infer) where
+module Language.Griff.Typing.Infer (infer, convertType) where
 
 import           Control.Arrow
 import           Control.Effect.Error
