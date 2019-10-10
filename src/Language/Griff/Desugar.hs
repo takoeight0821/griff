@@ -12,12 +12,9 @@ import           Language.Griff.Typing.Infer (convertType, ConMap)
 import           Language.Griff.Typing.Monad
 
 desugar :: [S.Dec Id] -> Env -> ConMap -> Toplevel
-desugar ds env conMap =
-  let scDefs' = map dsScDef scDefs
-  in Toplevel scDefs' env conMap
-  where
-    scDefs = mapMaybe (\case
-                          S.ScDef _ f xs e -> Just (f, xs, e)
+desugar ds =
+  Toplevel $ mapMaybe (\case
+                          S.ScDef _ f xs e -> Just $ dsScDef (f, xs, e)
                           _ -> Nothing) ds
 
 dsScDef :: (Id, [Id], S.Exp Id) -> (Id, Exp)
