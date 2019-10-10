@@ -1,8 +1,9 @@
+{-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TupleSections              #-}
-module Language.Griff.Typing.Infer (infer, convertType) where
+module Language.Griff.Typing.Infer (infer, convertType, expandTCon, ConMap) where
 
 import           Control.Arrow
 import           Control.Effect.Error
@@ -12,7 +13,9 @@ import           Control.Monad
 import           Control.Monad.Fail
 import qualified Data.Map                    as Map
 import           Data.Maybe
+import           Data.Outputable
 import           Data.Tuple.Extra            (uncurry3)
+import           GHC.Generics
 import           Language.Griff.Id
 import           Language.Griff.Syntax
 import           Language.Griff.TypeRep
@@ -21,8 +24,8 @@ import           Language.Griff.Typing.Subst
 import           Prelude                     hiding (lookup)
 import           Text.Megaparsec.Pos
 
-newtype ConMap = ConMap { unConMap :: Map.Map Id ([Id], Type Id) }
-  deriving (Semigroup, Monoid)
+newtype ConMap = ConMap { unConMap :: Map.Map Id ([Id], Ty) }
+  deriving (Eq, Show, Generic, Outputable, Semigroup, Monoid)
 
 convertType :: Type Id -> Ty
 convertType (TyApp _ con args) = TCon con $ map convertType args
@@ -32,25 +35,24 @@ convertType (TyPrim _ p) = TPrim p
 convertType (TyRecord _ xs) = TRecord $ Map.fromList $ map (\(x, t) -> (x,) $ convertType t) xs
 convertType (TyVariant _ xs) = TVariant $ Map.fromList $ map (\(x, t) -> (x,) $ convertType t) xs
 
-expandTCon :: (Carrier sig m, Member (Error TypeError) sig, Member (Reader ConMap) sig) => Ty -> m Ty
-expandTCon (TCon con args) = do
-  env <- ask
+expandTCon :: (Carrier sig m, Member (Error TypeError) sig) => ConMap -> Ty -> m Ty
+expandTCon env (TCon con args) =
   case Map.lookup con $ unConMap env of
     Nothing -> throwError $ UndefinedType con
     Just (params, ty) ->
-      pure $ apply (Subst $ Map.fromList $ zip params args) (convertType ty)
-expandTCon t = pure t
+      pure $ apply (Subst $ Map.fromList $ zip params args) ty
+expandTCon _ t = pure t
 
 loadTypeAlias :: (Member (Error TypeError) sig, Carrier sig m) => (a, Id, [Id], Type Id) -> m ConMap
 loadTypeAlias (_, con, args, ty) =
-  return $ ConMap $ Map.singleton con (args, ty)
+  return $ ConMap $ Map.singleton con (args, convertType ty)
 
 loadScSig :: (Carrier sig m, InferEff sig) => (a, Id, Type Id) -> m Constraint
 loadScSig (_, x, t) = do
   tv <- lookup x
   pure (tv, convertType t)
 
-infer :: (Carrier sig m, InferEff sig, MonadFail m) => [Dec Id] -> m ()
+infer :: (Carrier sig m, InferEff sig, MonadFail m) => [Dec Id] -> m ConMap
 infer ds = do
   let scSigs = mapMaybe scSig ds
   let scDefs = mapMaybe scDef ds
@@ -69,6 +71,7 @@ infer ds = do
     mapM_ addScheme (zip (map (view _2) scDefs) scs)
     update $ apply sub
 
+  return conMap
   where
     scSig (ScSig s x t) = Just (s, x, t)
     scSig _             = Nothing
@@ -101,7 +104,8 @@ inferExp (Record _ xs) = do
     values = map snd xs
 inferExp (Proj _ label _) = throwError $ UndecidableProj label
 inferExp (Ascribe _ (Proj _ label e) t) = do
-  TVariant xs <- expandTCon $ convertType t
+  env <- ask
+  TVariant xs <- expandTCon env $ convertType t
   let valType = fromJust $ Map.lookup label xs
   (eType, cs) <- inferExp e
   pure (convertType t, (valType, eType) : cs)
@@ -173,7 +177,8 @@ inferPat t0 (RecordP _ xs) = do
   cs <- concat <$> zipWithM inferPat ts (map snd xs)
   pure $ (t0, ty) : cs
 inferPat t0 (VariantP _ label x ty) = do
-  TVariant xs <- expandTCon $ convertType ty
+  env <- ask
+  TVariant xs <- expandTCon env $ convertType ty
   let Just valType = Map.lookup label xs
   cs <- inferPat valType x
   pure $ (t0, convertType ty) : cs

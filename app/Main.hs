@@ -6,6 +6,7 @@ import           Control.Effect
 import           Control.Monad.IO.Class
 import           Data.Outputable
 import           Data.String
+import           Language.Griff.Desugar
 import           Language.Griff.Parser
 import           Language.Griff.Rename
 import           Language.Griff.Typing.Infer
@@ -24,4 +25,7 @@ main = do
       typeEnv <- runInfer mempty (infer ast')
       liftIO $ print $ ppr ast'
       liftIO $ print $ ppr typeEnv
+      case typeEnv of
+        Right (env, conMap) -> liftIO $ print $ ppr $ desugar ast' env conMap
+        Left _ -> pure ()
     Left err -> liftIO $ putStrLn $ errorBundlePretty err

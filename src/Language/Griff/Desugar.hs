@@ -8,21 +8,17 @@ import           Language.Griff.Core         as C
 import           Language.Griff.Id
 import qualified Language.Griff.Syntax       as S
 import           Language.Griff.TypeRep
-import           Language.Griff.Typing.Infer (convertType)
+import           Language.Griff.Typing.Infer (convertType, ConMap)
 import           Language.Griff.Typing.Monad
 
-desugar :: [S.Dec Id] -> Env -> Toplevel
-desugar ds env =
+desugar :: [S.Dec Id] -> Env -> ConMap -> Toplevel
+desugar ds env conMap =
   let scDefs' = map dsScDef scDefs
-      typeDefs' = map dsTypeAliasDef typeDefs
-  in Toplevel scDefs' env typeDefs'
+  in Toplevel scDefs' env conMap
   where
     scDefs = mapMaybe (\case
                           S.ScDef _ f xs e -> Just (f, xs, e)
                           _ -> Nothing) ds
-    typeDefs = mapMaybe (\case
-                            S.TypeAliasDef _ n xs t -> Just (n, xs, t)
-                            _ -> Nothing) ds
 
 dsScDef :: (Id, [Id], S.Exp Id) -> (Id, Exp)
 dsScDef (f, ps, e) = (f, foldr Lambda (dsExp e) ps)
@@ -34,9 +30,7 @@ dsExp (S.Char _ x)   = Char x
 dsExp (S.String _ x) = String x
 dsExp (S.Bool _ x)   = Bool x
 dsExp (S.Record _ xs) = Record $ map (second dsExp) xs
-dsExp (S.Ascribe _ (S.Proj _ l v) t) =
-  let TVariant t' = convertType t
-  in Proj l (dsExp v) t'
+dsExp (S.Ascribe _ (S.Proj _ l v) t) = Proj l (dsExp v) (convertType t)
 dsExp (S.Ascribe _ e _) = dsExp e
 dsExp S.Proj{} = error "unreachable S.Proj"
 dsExp (S.Apply _ e1 e2) = Apply (dsExp e1) (dsExp e2)
@@ -69,8 +63,7 @@ dsPat :: S.Pat Id -> Pat
 dsPat (S.VarP _ x) = VarP x
 dsPat (S.RecordP _ xs) = RecordP $ map (second dsPat) xs
 dsPat (S.VariantP _ label pat ty) =
-  let TVariant ty' = convertType ty
-  in VariantP label (dsPat pat) ty'
+  VariantP label (dsPat pat) (convertType ty)
 
 dsTypeAliasDef :: (Id, [Id], S.Type Id) -> (Id, [Id], Ty)
 dsTypeAliasDef (n, ps, t) = (n, ps, convertType t)

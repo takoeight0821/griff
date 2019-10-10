@@ -8,6 +8,7 @@ import           Data.Text
 import           GHC.Generics
 import           Language.Griff.Id
 import           Language.Griff.TypeRep
+import           Language.Griff.Typing.Infer (ConMap)
 
 data Exp = Var Id
          | Int Integer
@@ -15,7 +16,7 @@ data Exp = Var Id
          | String Text
          | Bool Bool
          | Record [(Text, Exp)]
-         | Proj Text Exp (Map Text Ty)
+         | Proj Text Exp Ty
          | Apply Exp Exp
          | Lambda Id Exp
          | Let Id Exp Exp
@@ -32,12 +33,12 @@ data Op = Add | Sub | Mul | Div | Mod | Eq | Neq
 data Pat = VarP Id
          | BoolP Bool
          | RecordP [(Text, Pat)]
-         | VariantP Text Pat (Map Text Ty)
+         | VariantP Text Pat Ty
   deriving (Eq, Show, Generic, Outputable)
 
 data Toplevel = Toplevel
   { _scDef   :: [(Id, Exp)]
   , _env     :: Map Id Scheme
-  , _typeDef :: [(Id, [Id], Ty)]
+  , _typeDef :: ConMap
   } deriving (Eq, Show, Generic, Outputable)
 
