@@ -4,9 +4,10 @@
 {-# LANGUAGE DeriveGeneric      #-}
 {-# LANGUAGE EmptyDataDeriving  #-}
 {-# LANGUAGE KindSignatures     #-}
+{-# LANGUAGE TemplateHaskell    #-}
 module Language.Griff.Syntax where
 
-import           Control.Lens.Plated
+import           Control.Lens
 import           Data.Data
 import           Data.Outputable
 import           Data.Text              (Text)
@@ -69,3 +70,5 @@ data Type a = TyApp SourcePos a [Type a]
   deriving (Eq, Ord, Show, Generic, Data)
 
 instance Outputable a => Outputable (Type a)
+
+makePrisms ''Dec

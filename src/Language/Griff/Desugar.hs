@@ -10,15 +10,14 @@ import qualified Language.Griff.Syntax       as S
 import           Language.Griff.TypeRep
 import           Language.Griff.Typing.Infer (convertType, ConMap)
 import           Language.Griff.Typing.Monad
+import Control.Lens
 
 desugar :: [S.Dec Id] -> Env -> ConMap -> Toplevel
 desugar ds =
-  Toplevel $ mapMaybe (\case
-                          S.ScDef _ f xs e -> Just $ dsScDef (f, xs, e)
-                          _ -> Nothing) ds
+  Toplevel $ mapMaybe (fmap dsScDef . preview S._ScDef) ds
 
-dsScDef :: (Id, [Id], S.Exp Id) -> (Id, Exp)
-dsScDef (f, ps, e) = (f, foldr Lambda (dsExp e) ps)
+dsScDef :: (a, Id, [Id], S.Exp Id) -> (Id, Exp)
+dsScDef (_, f, ps, e) = (f, foldr Lambda (dsExp e) ps)
 
 dsExp :: S.Exp Id -> Exp
 dsExp (S.Var _ x)    = Var x

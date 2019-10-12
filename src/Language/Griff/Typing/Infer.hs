@@ -54,9 +54,9 @@ loadScSig (_, x, t) = do
 
 infer :: (Carrier sig m, InferEff sig, MonadFail m) => [Dec Id] -> m ConMap
 infer ds = do
-  let scSigs = mapMaybe scSig ds
-  let scDefs = mapMaybe scDef ds
-  let typeAliasDefs = mapMaybe typeAliasDef ds
+  let scSigs = mapMaybe (preview _ScSig) ds
+  let scDefs = mapMaybe (preview _ScDef) ds
+  let typeAliasDefs = mapMaybe (preview _TypeAliasDef) ds
 
   conMap <- mconcat <$> mapM loadTypeAlias typeAliasDefs
 
@@ -73,13 +73,6 @@ infer ds = do
 
   return conMap
   where
-    scSig (ScSig s x t) = Just (s, x, t)
-    scSig _             = Nothing
-    scDef (ScDef s f xs e) = Just (s, f, xs, e)
-    scDef _                = Nothing
-    typeAliasDef (TypeAliasDef s con ps t) = Just (s, con, ps, t)
-    typeAliasDef _                         = Nothing
-
     prepare = mapM_ (\x -> fresh >>= \tv -> addScheme (x, Forall [] tv))
 
 inferDef :: (Carrier sig m, InferEff sig, Member (Reader ConMap) sig, MonadFail m) => (SourcePos, Id, [Id], Exp Id) -> m (Ty, [Constraint])
