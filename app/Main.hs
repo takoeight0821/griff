@@ -1,15 +1,15 @@
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TupleSections     #-}
 {-# OPTIONS_GHC -fno-warn-name-shadowing #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
-import Language.Griff.Core
 import           Control.Effect
 import           Control.Monad.IO.Class
 import           Data.Outputable
 import           Data.String
-import qualified Language.Griff.KNormal as KNormal
+import           Language.Griff.Core
 import           Language.Griff.Desugar
+import qualified Language.Griff.KNormal      as KNormal
 import           Language.Griff.Parser
 import           Language.Griff.Rename
 import           Language.Griff.Typing.Infer
