@@ -4,7 +4,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 module Language.Griff.Id where
 
-import Control.Effect
+import           Control.Effect
 import           Data.Data
 import           Data.Outputable
 import           Data.String
