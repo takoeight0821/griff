@@ -9,7 +9,6 @@ import           Data.Bifunctor
 import           Data.Text                   (Text)
 import           Language.Griff.Core
 import           Language.Griff.Id
-import           Language.Griff.TypeRep
 import           Language.Griff.Typing.Monad
 
 convert :: (Carrier sig m, InferEff sig, MonadFail m) => Exp -> m Exp
