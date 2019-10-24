@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric      #-}
+{-# LANGUAGE NoImplicitPrelude  #-}
 module Language.Griff.TypeRep where
 
 import           Data.Data
@@ -8,6 +9,7 @@ import           Data.Outputable
 import           Data.Text
 import           GHC.Generics
 import           Language.Griff.Id
+import           Language.Griff.Prelude
 
 data Ty = TVar Id
         | TArr Ty Ty

@@ -1,12 +1,14 @@
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass    #-}
+{-# LANGUAGE DeriveGeneric     #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 module Language.Griff.CPS where
 
-import           Data.Map          (Map)
+import           Data.Map               (Map)
 import           Data.Outputable
-import           Data.Text         (Text)
+import           Data.Text              (Text)
 import           GHC.Generics
 import           Language.Griff.Id
+import           Language.Griff.Prelude
 
 type LVar = (Id, CType)
 

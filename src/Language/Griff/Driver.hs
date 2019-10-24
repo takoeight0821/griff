@@ -1,5 +1,6 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TupleSections    #-}
+{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE TupleSections     #-}
 module Language.Griff.Driver (compileFromPath) where
 
 import           Control.Effect
@@ -14,6 +15,7 @@ import           Language.Griff.Desugar
 import           Language.Griff.Id
 import qualified Language.Griff.KNormal      as KNormal
 import           Language.Griff.Parser
+import           Language.Griff.Prelude
 import           Language.Griff.Rename
 import           Language.Griff.Syntax
 import           Language.Griff.Typing.Infer
@@ -51,7 +53,7 @@ typeCheck ast = do
 
 knormalize :: (Carrier sig m, MonadFail m, Effect sig, Member (Error String) sig, Member Fresh sig) => Core.Toplevel -> Env -> m (Env, [(Id, Core.Exp)])
 knormalize desugared env = do
-  kn <- runInfer env $ mapM (\(n, e) -> (n,) <$> KNormal.convert e) (Core._scDef desugared)
+  kn <- runInfer env $ mapM (secondM KNormal.convert) (Core._scDef desugared)
   case kn of
     Right e -> pure e
     Left e  -> throwError $ show $ ppr e

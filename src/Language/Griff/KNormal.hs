@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections     #-}
 module Language.Griff.KNormal (convert) where
@@ -9,6 +10,7 @@ import           Data.Bifunctor
 import           Data.Text                   (Text)
 import           Language.Griff.Core
 import           Language.Griff.Id
+import           Language.Griff.Prelude
 import           Language.Griff.Typing.Monad
 
 convert :: (Carrier sig m, InferEff sig, MonadFail m) => Exp -> m Exp
@@ -33,7 +35,7 @@ conv (Proj l e t) = insertLet e $ \e' -> pure $ Proj l e' t
 conv (Apply e1 e2) = insertLet e1 $ \e1' -> insertLet e2 $ \e2' -> pure $ Apply e1' e2'
 conv (Lambda x e) = Lambda x <$> conv e
 conv (Let x e1 e2) = Let x <$> conv e1 <*> conv e2
-conv (LetRec ds e) = LetRec <$> mapM (\(n, v) -> (n,) <$> conv v) ds <*> conv e
+conv (LetRec ds e) = LetRec <$> mapM (secondM conv) ds <*> conv e
 conv (Prim op es) = go es []
   where go [] ys     = pure $ Prim op ys
         go (x:xs) ys = insertLet x $ \x' -> go xs (x':ys)

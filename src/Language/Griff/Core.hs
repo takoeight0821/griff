@@ -1,11 +1,13 @@
 {-# LANGUAGE DeriveAnyClass    #-}
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections     #-}
 module Language.Griff.Core (Exp(..), Op(..), Pat(..), Toplevel(..), schemeOf, schemeOfPat) where
 
 import           Control.Effect
+import           Control.Monad
 import           Control.Monad.Fail
 import           Data.Map                    (Map)
 import qualified Data.Map                    as Map
@@ -13,10 +15,10 @@ import           Data.Outputable
 import           Data.Text
 import           GHC.Generics
 import           Language.Griff.Id
+import           Language.Griff.Prelude
 import           Language.Griff.TypeRep
 import           Language.Griff.Typing.Infer (ConMap)
 import           Language.Griff.Typing.Monad
-import           Prelude                     hiding (lookup)
 
 data Exp = Var Id
          | Int Integer
@@ -57,7 +59,7 @@ schemeOf Char{} = pure $ Forall [] (TPrim TChar)
 schemeOf String{} = pure $ Forall [] (TPrim TString)
 schemeOf Bool{} = pure $ Forall [] (TPrim TBool)
 schemeOf (Record xs) = do
-  ts <- mapM (\(n, v) -> (n,) <$> (instantiate =<< schemeOf v)) xs
+  ts <- mapM (secondM (schemeOf >=> instantiate)) xs
   generalize <$> getEnv <*> pure (TRecord $ Map.fromList ts)
 schemeOf (Proj _ _ t) = generalize <$> getEnv <*> pure t
 schemeOf (Apply e1 _) = do
@@ -93,6 +95,6 @@ schemeOfPat :: (Carrier sig f, Member (Error TypeError) sig, Member (State Env) 
 schemeOfPat (VarP x) = generalize <$> getEnv <*> lookup x
 schemeOfPat (BoolP _) = pure $ Forall [] (TPrim TBool)
 schemeOfPat (RecordP xs) = do
-  ts <- mapM (\(n, p) -> (n,) <$> (instantiate =<< schemeOfPat p)) xs
+  ts <- mapM (secondM $ schemeOfPat >=> instantiate) xs
   generalize <$> getEnv <*> pure (TRecord $ Map.fromList ts)
 schemeOfPat (VariantP _ _ t) = generalize <$> getEnv <*> pure t

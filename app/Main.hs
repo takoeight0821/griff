@@ -1,6 +1,8 @@
+{-# LANGUAGE NoImplicitPrelude #-}
 module Main where
 
 import           Language.Griff.Driver
+import           Language.Griff.Prelude
 import           System.Environment
 
 main :: IO ()

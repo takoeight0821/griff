@@ -2,14 +2,14 @@
 module Language.Griff.Prelude
   ( module Prelude
   , module Data.Bifunctor
-  , module Data.Bitraversable 
+  , module Data.Bitraversable
   , firstM
   , secondM
   ) where
 
 import           Data.Bifunctor
 import           Data.Bitraversable
-import           Prelude
+import           Prelude            hiding (lookup)
 
 firstM :: (Applicative f, Bitraversable t) => (a -> f c) -> t a b -> f (t c b)
 firstM f = bitraverse f pure

@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveAnyClass             #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE NoImplicitPrelude          #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE TupleSections              #-}
@@ -13,12 +14,13 @@ import           Control.Effect.Reader
 import           Control.Effect.State
 import           Control.Lens
 import           Control.Monad
-import           Data.Map              (Map)
-import qualified Data.Map              as Map
+import           Data.Map               (Map)
+import qualified Data.Map               as Map
 import           Data.Maybe
-import qualified Data.Set              as Set
-import           Data.Text             (Text)
+import qualified Data.Set               as Set
+import           Data.Text              (Text)
 import           Language.Griff.Id
+import           Language.Griff.Prelude
 import           Language.Griff.Syntax
 
 newtype TyVarEnv = TyVarEnv { _tyvarBinderMap :: Map Id (Map Text Id) }
@@ -99,7 +101,7 @@ rnExp (Int s x) = pure $ Int s x
 rnExp (Bool s x) = pure $ Bool s x
 rnExp (Char s x) = pure $ Char s x
 rnExp (String s x) = pure $ String s x
-rnExp (Record s xs) = Record s <$> mapM (\(x, v) -> (x,) <$> rnExp v) xs
+rnExp (Record s xs) = Record s <$> mapM (secondM rnExp) xs
 rnExp (Proj s x v) = Proj s x <$> rnExp v
 rnExp (Ascribe s e t) = Ascribe s <$> rnExp e <*> rnType t
 rnExp (Apply s e1 e2) = Apply s <$> rnExp e1 <*> rnExp e2
@@ -152,5 +154,5 @@ rnType (TyApp s con ts) = TyApp s <$> lookupName' con <*> mapM rnType ts
 rnType (TyVar s x) = TyVar s <$> lookupTyvar' x
 rnType (TyArr s t1 t2) = TyArr s <$> rnType t1 <*> rnType t2
 rnType (TyPrim s p) = pure $ TyPrim s p
-rnType (TyRecord s xs) = TyRecord s <$> mapM (\(x, t) -> (x,) <$> rnType t) xs
-rnType (TyVariant s xs) = TyVariant s <$> mapM (\(x, t) -> (x,) <$> rnType t) xs
+rnType (TyRecord s xs) = TyRecord s <$> mapM (secondM rnType) xs
+rnType (TyVariant s xs) = TyVariant s <$> mapM (secondM rnType) xs

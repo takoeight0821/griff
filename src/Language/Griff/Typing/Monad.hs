@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE GADTs             #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies      #-}
 module Language.Griff.Typing.Monad
@@ -31,9 +32,9 @@ import qualified Data.Set                    as Set
 import           Data.Text                   (Text)
 import           GHC.Generics
 import           Language.Griff.Id
+import           Language.Griff.Prelude
 import           Language.Griff.TypeRep
 import           Language.Griff.Typing.Subst
-import           Prelude                     hiding (lookup)
 
 data TypeError = UnificationFail Ty Ty
                | InfiniteType Id Ty
@@ -72,7 +73,7 @@ fresh = do
 
 addScheme :: (Carrier sig m, InferEff sig) => (Id, Scheme) -> m ()
 addScheme (x, sc) = do
-  let scope e = Map.insert x sc $ Map.delete x e 
+  let scope e = Map.insert x sc $ Map.delete x e
   update scope
 
 instantiate :: (Carrier sig m, InferEff sig) => Scheme -> m Ty

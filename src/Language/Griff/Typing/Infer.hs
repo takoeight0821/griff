@@ -1,11 +1,11 @@
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE NoImplicitPrelude          #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TupleSections              #-}
 module Language.Griff.Typing.Infer (infer, convertType, expandTCon, ConMap) where
 
-import           Control.Arrow
 import           Control.Effect.Error
 import           Control.Effect.Reader
 import           Control.Lens                hiding (op)
@@ -17,11 +17,11 @@ import           Data.Outputable
 import           Data.Tuple.Extra            (uncurry3)
 import           GHC.Generics
 import           Language.Griff.Id
+import           Language.Griff.Prelude
 import           Language.Griff.Syntax
 import           Language.Griff.TypeRep
 import           Language.Griff.Typing.Monad
 import           Language.Griff.Typing.Subst
-import           Prelude                     hiding (lookup)
 import           Text.Megaparsec.Pos
 
 newtype ConMap = ConMap { unConMap :: Map.Map Id ([Id], Ty) }
@@ -32,8 +32,8 @@ convertType (TyApp _ con args) = TCon con $ map convertType args
 convertType (TyVar _ a) = TVar a
 convertType (TyArr _ t1 t2) = TArr (convertType t1) (convertType t2)
 convertType (TyPrim _ p) = TPrim p
-convertType (TyRecord _ xs) = TRecord $ Map.fromList $ map (\(x, t) -> (x,) $ convertType t) xs
-convertType (TyVariant _ xs) = TVariant $ Map.fromList $ map (\(x, t) -> (x,) $ convertType t) xs
+convertType (TyRecord _ xs) = TRecord $ Map.fromList $ map (second convertType) xs
+convertType (TyVariant _ xs) = TVariant $ Map.fromList $ map (second convertType) xs
 
 expandTCon :: (Carrier sig m, Member (Error TypeError) sig) => ConMap -> Ty -> m Ty
 expandTCon env (TCon con args) =

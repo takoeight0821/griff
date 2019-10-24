@@ -4,6 +4,7 @@
 {-# LANGUAGE DeriveGeneric      #-}
 {-# LANGUAGE EmptyDataDeriving  #-}
 {-# LANGUAGE KindSignatures     #-}
+{-# LANGUAGE NoImplicitPrelude  #-}
 {-# LANGUAGE TemplateHaskell    #-}
 module Language.Griff.Syntax where
 
@@ -12,6 +13,7 @@ import           Data.Data
 import           Data.Outputable
 import           Data.Text              (Text)
 import           GHC.Generics
+import           Language.Griff.Prelude
 import           Language.Griff.TypeRep (TPrim (..))
 import           Text.Megaparsec.Pos
 

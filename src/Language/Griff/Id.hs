@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE FlexibleContexts          #-}
+{-# LANGUAGE NoImplicitPrelude         #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 module Language.Griff.Id where
 
@@ -8,8 +9,9 @@ import           Control.Effect
 import           Data.Data
 import           Data.Outputable
 import           Data.String
-import           Data.Text           (Text, unpack, pack)
-import           GHC.Generics        (Generic)
+import           Data.Text              (Text, pack, unpack)
+import           GHC.Generics           (Generic)
+import           Language.Griff.Prelude
 import           Language.Griff.Uniq
 
 newtype Id = Id Text
