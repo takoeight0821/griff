@@ -5,4 +5,4 @@ extra-deps:
   github: takoeight0821/outputable
   sha256: ebb447aab0e225d9a31a4c8a56609ba7d44f82ca7def1398dabea2ae74032245
   commit: b881db5
-resolver: lts-14.7
+resolver: lts-14.11
