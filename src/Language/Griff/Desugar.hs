@@ -2,15 +2,15 @@
 {-# LANGUAGE LambdaCase       #-}
 module Language.Griff.Desugar where
 
+import           Control.Lens
 import           Data.Bifunctor
 import           Data.Maybe
 import           Language.Griff.Core         as C
 import           Language.Griff.Id
 import qualified Language.Griff.Syntax       as S
 import           Language.Griff.TypeRep
-import           Language.Griff.Typing.Infer (convertType, ConMap)
+import           Language.Griff.Typing.Infer (ConMap, convertType)
 import           Language.Griff.Typing.Monad
-import Control.Lens
 
 desugar :: [S.Dec Id] -> Env -> ConMap -> Toplevel
 desugar ds =

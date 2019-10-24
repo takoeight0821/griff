@@ -3,7 +3,7 @@
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections     #-}
-module Language.Griff.Core (Exp(..), Op(..), Pat(..), Toplevel(..), schemeOf)where
+module Language.Griff.Core (Exp(..), Op(..), Pat(..), Toplevel(..), schemeOf, schemeOfPat) where
 
 import           Control.Effect
 import           Control.Monad.Fail
@@ -89,3 +89,10 @@ schemeOf (Prim op _) = case op of
     a <- newId "a"
     pure $ Forall [a] (TVar a)
 
+schemeOfPat :: (Carrier sig f, Member (Error TypeError) sig, Member (State Env) sig, Member Fresh sig) => Pat -> f Scheme
+schemeOfPat (VarP x) = generalize <$> getEnv <*> lookup x
+schemeOfPat (BoolP _) = pure $ Forall [] (TPrim TBool)
+schemeOfPat (RecordP xs) = do
+  ts <- mapM (\(n, p) -> (n,) <$> (instantiate =<< schemeOfPat p)) xs
+  generalize <$> getEnv <*> pure (TRecord $ Map.fromList ts)
+schemeOfPat (VariantP _ _ t) = generalize <$> getEnv <*> pure t
