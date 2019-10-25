@@ -161,10 +161,8 @@ opTable =
     -- postfix name f = Postfix (getSourcePos >>= \s -> pOperator name >> return (f s))
 
 pVarPat :: Parser (Pat Text)
-pVarPat = label "variable pattern" $ do
-  s <- getSourcePos
-  x <- lowerIdent
-  return $ VarP s x
+pVarPat = label "variable pattern" $
+  VarP <$> getSourcePos <*> lowerIdent
 
 pRecordPat :: Parser (Pat Text)
 pRecordPat = label "record pattern" $ do
@@ -177,16 +175,10 @@ pRecordPat = label "record pattern" $ do
     field = (,) <$> lowerIdent <* pOperator "=" <*> pPattern
 
 pVariantPat :: Parser (Pat Text)
-pVariantPat = label "variant pattern" $ do
-  s <- getSourcePos
-  void $ symbol "<"
-  x <- lowerIdent
-  pOperator "="
-  p <- pPattern
-  void $ symbol ">"
-  pKeyword "as"
-  ty <- pType
-  return $ VariantP s x p ty
+pVariantPat = label "variant pattern" $
+  VariantP <$> getSourcePos
+    <* void (symbol "<") <*> lowerIdent <* pOperator "=" <*> pPattern <* void (symbol ">")
+    <* pKeyword "as" <*> pType
 
 pPattern :: Parser (Pat Text)
 pPattern = pVarPat
@@ -213,19 +205,15 @@ pAscribe :: Parser (Exp Text)
 pAscribe = Ascribe <$> getSourcePos <*> pTerm <* pKeyword "as" <*> pType
 
 pIf :: Parser (Exp Text)
-pIf = label "if expression" $ do
-  s <- getSourcePos
-  pKeyword "if"
-  c <- pExp
-  pKeyword "then"
-  t <- pExp
-  pKeyword "else"
-  f <- pExp
-  return $ If s c t f
+pIf = label "if expression" $
+  If <$> getSourcePos
+    <* pKeyword "if" <*> pExp
+    <* pKeyword "then" <*> pExp
+    <* pKeyword "else" <*> pExp
 
 pExp :: Parser (Exp Text)
 pExp = try pAscribe
-       <|>try pBinOp
+       <|> try pBinOp
        <|> pTerm
        <|> pLambda
        <|> try pLet -- revert "let"
