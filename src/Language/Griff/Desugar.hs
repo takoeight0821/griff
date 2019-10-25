@@ -35,22 +35,7 @@ dsExp (S.Lambda _ x e) = Lambda x $ dsExp e
 dsExp (S.Let _ f xs e1 e2) = Let f (foldr Lambda (dsExp e1) xs) (dsExp e2)
 dsExp (S.LetRec _ xs e) =
   LetRec (map (\(f, ps, e1) -> (f, foldr Lambda (dsExp e1) ps)) xs) (dsExp e)
-dsExp (S.BinOp _ o e1 e2) =
-  Prim (dsOp o) $ map dsExp [e1, e2]
-  where
-    dsOp S.Add = Add
-    dsOp S.Sub = Sub
-    dsOp S.Mul = Mul
-    dsOp S.Div = Div
-    dsOp S.Mod = Mod
-    dsOp S.Eq  = Eq
-    dsOp S.Neq = Neq
-    dsOp S.Lt  = Lt
-    dsOp S.Le  = Le
-    dsOp S.Gt  = Gt
-    dsOp S.Ge  = Ge
-    dsOp S.And = And
-    dsOp S.Or  = Or
+dsExp (S.BinOp _ o e1 e2) = BinOp o $ map dsExp [e1, e2]
 dsExp (S.Case _ v cs) =
   Case (dsExp v) (map (bimap dsPat dsExp) cs)
 dsExp (S.If _ c t f) =

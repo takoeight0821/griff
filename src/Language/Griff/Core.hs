@@ -2,7 +2,6 @@
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE OverloadedStrings #-}
 module Language.Griff.Core (Exp(..), Op(..), Pat(..), Toplevel(..), schemeOf, schemeOfPat) where
 
 import           Control.Effect
@@ -15,6 +14,7 @@ import           Data.Text
 import           GHC.Generics
 import           Language.Griff.Id
 import           Language.Griff.Prelude
+import           Language.Griff.Syntax       (Op (..))
 import           Language.Griff.TypeRep
 import           Language.Griff.Typing.Infer (ConMap)
 import           Language.Griff.Typing.Monad
@@ -30,13 +30,8 @@ data Exp = Var Id
          | Lambda Id Exp
          | Let Id Exp Exp
          | LetRec [(Id, Exp)] Exp
-         | Prim Op [Exp]
+         | BinOp Op [Exp]
          | Case Exp [(Pat, Exp)]
-  deriving (Eq, Show, Generic, Outputable)
-
-data Op = Add | Sub | Mul | Div | Mod | Eq | Neq
-        | Lt | Le | Gt | Ge | And | Or
-        | Error
   deriving (Eq, Show, Generic, Outputable)
 
 data Pat = VarP Id
@@ -72,23 +67,20 @@ schemeOf (Let _ _ e) = schemeOf e
 schemeOf (LetRec _ e) = schemeOf e
 schemeOf (Case _ ((_, e):_)) = schemeOf e
 schemeOf Case{} = undefined
-schemeOf (Prim op _) = case op of
+schemeOf (BinOp p _) = case p of
   Add -> pure $ Forall [] (TPrim TInt)
   Sub -> pure $ Forall [] (TPrim TInt)
   Mul-> pure $ Forall [] (TPrim TInt)
   Div -> pure $ Forall [] (TPrim TInt)
   Mod -> pure $ Forall [] (TPrim TInt)
-  Eq -> pure $ Forall [] (TPrim TBool)
+  Eq  -> pure $ Forall [] (TPrim TBool)
   Neq -> pure $ Forall [] (TPrim TBool)
-  Lt -> pure $ Forall [] (TPrim TBool)
-  Le -> pure $ Forall [] (TPrim TBool)
-  Gt -> pure $ Forall [] (TPrim TBool)
-  Ge -> pure $ Forall [] (TPrim TBool)
+  Lt  -> pure $ Forall [] (TPrim TBool)
+  Le  -> pure $ Forall [] (TPrim TBool)
+  Gt  -> pure $ Forall [] (TPrim TBool)
+  Ge  -> pure $ Forall [] (TPrim TBool)
   And -> pure $ Forall [] (TPrim TBool)
-  Or -> pure $ Forall [] (TPrim TBool)
-  Error -> do
-    a <- newId "a"
-    pure $ Forall [a] (TVar a)
+  Or  -> pure $ Forall [] (TPrim TBool)
 
 schemeOfPat :: (Carrier sig f, Member (Error TypeError) sig, Member (State Env) sig, Member Fresh sig) => Pat -> f Scheme
 schemeOfPat (VarP x) = generalize <$> getEnv <*> lookup x

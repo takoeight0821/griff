@@ -36,8 +36,8 @@ conv (Apply e1 e2) = insertLet e1 $ \e1' -> insertLet e2 $ \e2' -> pure $ Apply 
 conv (Lambda x e) = Lambda x <$> conv e
 conv (Let x e1 e2) = Let x <$> conv e1 <*> conv e2
 conv (LetRec ds e) = LetRec <$> mapM (secondM conv) ds <*> conv e
-conv (Prim op es) = go es []
-  where go [] ys     = pure $ Prim op ys
+conv (BinOp op es) = go es []
+  where go [] ys     = pure $ BinOp op ys
         go (x:xs) ys = insertLet x $ \x' -> go xs (x':ys)
 conv (Case e cs) = Case <$> conv e <*> mapM (\(p, v) -> crushPat p =<< conv v) cs
 conv x = pure x
