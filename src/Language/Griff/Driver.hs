@@ -1,6 +1,5 @@
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE TupleSections     #-}
 module Language.Griff.Driver (compileFromPath) where
 
 import           Control.Effect

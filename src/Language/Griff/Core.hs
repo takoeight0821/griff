@@ -3,7 +3,6 @@
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TupleSections     #-}
 module Language.Griff.Core (Exp(..), Op(..), Pat(..), Toplevel(..), schemeOf, schemeOfPat) where
 
 import           Control.Effect
