@@ -151,8 +151,8 @@ freeTyVars (TyVariant _ xs) = Set.unions $ map (freeTyVars . snd) xs
 
 rnType :: (Carrier sig f, Member (Reader Env) sig) => Type Text -> f (Type Id)
 rnType (TyApp s con ts) = TyApp s <$> lookupName' con <*> mapM rnType ts
-rnType (TyVar s x) = TyVar s <$> lookupTyvar' x
-rnType (TyArr s t1 t2) = TyArr s <$> rnType t1 <*> rnType t2
-rnType (TyPrim s p) = pure $ TyPrim s p
-rnType (TyRecord s xs) = TyRecord s <$> mapM (secondM rnType) xs
+rnType (TyVar s x)      = TyVar s <$> lookupTyvar' x
+rnType (TyArr s t1 t2)  = TyArr s <$> rnType t1 <*> rnType t2
+rnType (TyPrim s p)     = pure $ TyPrim s p
+rnType (TyRecord s xs)  = TyRecord s <$> mapM (secondM rnType) xs
 rnType (TyVariant s xs) = TyVariant s <$> mapM (secondM rnType) xs
