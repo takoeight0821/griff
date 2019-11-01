@@ -4,10 +4,12 @@
 {-# LANGUAGE NoImplicitPrelude          #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TupleSections              #-}
+{-# LANGUAGE TypeApplications           #-}
 module Language.Griff.Typing.Infer (infer, convertType, expandTCon, ConMap) where
 
 import           Control.Effect.Error
 import           Control.Effect.Reader
+import           Control.Effect.State
 import           Control.Lens                hiding (op)
 import           Control.Monad
 import           Control.Monad.Fail
@@ -62,14 +64,14 @@ infer ds = do
 
   prepare (map (view _2) scDefs)
   cs0 <- mapM loadScSig scSigs
-  update =<< apply <$> runSolve cs0
+  modify @Env =<< apply <$> runSolve cs0
 
   runReader conMap $ do
     (ts, cs1) <- second mconcat <$> mapAndUnzipM inferDef scDefs
     sub <- runSolve cs1
     let scs = map (closeOver . apply sub) ts
     mapM_ addScheme (zip (map (view _2) scDefs) scs)
-    update $ apply sub
+    modify @Env $ apply sub
 
   return conMap
   where
@@ -116,13 +118,13 @@ inferExp (Lambda _ x e) = do
   (eType, cs) <- inferExp e
   pure (TArr tv eType, cs)
 inferExp (Let s f xs e1 e2) = do
-  env <- getEnv
+  env <- get
   (t1, cs1) <- inferExp $ foldr (Lambda s) e1 xs
   letVar env f t1 cs1
   (t2, cs2) <- inferExp e2
   pure (t2, cs1 <> cs2)
 inferExp (LetRec s ds e2) = do
-  env <- getEnv
+  env <- get
   mapM_ (prepare . view _1) ds
   cs0 <- concat <$> mapM (uncurry3 $ inferRec env) ds
   (t1, cs1) <- inferExp e2
@@ -200,4 +202,4 @@ letVar env var ty cs = do
   sub <- runSolve cs
   let sc = generalize (apply sub env) (apply sub ty)
   addScheme (var, sc)
-  update (apply sub)
+  modify @Env (apply sub)

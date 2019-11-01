@@ -5,6 +5,7 @@
 module Language.Griff.Core (Exp(..), Op(..), Pat(..), Toplevel(..), schemeOf, schemeOfPat) where
 
 import           Control.Effect
+import           Control.Effect.State
 import           Control.Monad
 import           Control.Monad.Fail
 import           Data.Map                    (Map)
@@ -47,22 +48,22 @@ data Toplevel = Toplevel
   } deriving (Eq, Show, Generic, Outputable)
 
 schemeOf :: (Carrier sig m, InferEff sig, MonadFail m) => Exp -> m Scheme
-schemeOf (Var x) = generalize <$> getEnv <*> lookup x
+schemeOf (Var x) = generalize <$> get <*> lookup x
 schemeOf Int{} = pure $ Forall [] (TPrim TInt)
 schemeOf Char{} = pure $ Forall [] (TPrim TChar)
 schemeOf String{} = pure $ Forall [] (TPrim TString)
 schemeOf Bool{} = pure $ Forall [] (TPrim TBool)
 schemeOf (Record xs) = do
   ts <- mapM (secondM (schemeOf >=> instantiate)) xs
-  generalize <$> getEnv <*> pure (TRecord $ Map.fromList ts)
-schemeOf (Proj _ _ t) = generalize <$> getEnv <*> pure t
+  generalize <$> get <*> pure (TRecord $ Map.fromList ts)
+schemeOf (Proj _ _ t) = generalize <$> get <*> pure t
 schemeOf (Apply e1 _) = do
   TArr _ t <- instantiate =<< schemeOf e1
-  generalize <$> getEnv <*> pure t
+  generalize <$> get <*> pure t
 schemeOf (Lambda x e) = do
   xt <- lookup x
   et <- instantiate =<< schemeOf e
-  generalize <$> getEnv <*> pure (TArr xt et)
+  generalize <$> get <*> pure (TArr xt et)
 schemeOf (Let _ _ e) = schemeOf e
 schemeOf (LetRec _ e) = schemeOf e
 schemeOf (Case _ ((_, e):_)) = schemeOf e
@@ -83,9 +84,9 @@ schemeOf (BinOp p _) = case p of
   Or  -> pure $ Forall [] (TPrim TBool)
 
 schemeOfPat :: (Carrier sig f, Member (Error TypeError) sig, Member (State Env) sig, Member Fresh sig) => Pat -> f Scheme
-schemeOfPat (VarP x) = generalize <$> getEnv <*> lookup x
+schemeOfPat (VarP x) = generalize <$> get <*> lookup x
 schemeOfPat (BoolP _) = pure $ Forall [] (TPrim TBool)
 schemeOfPat (RecordP xs) = do
   ts <- mapM (secondM $ schemeOfPat >=> instantiate) xs
-  generalize <$> getEnv <*> pure (TRecord $ Map.fromList ts)
-schemeOfPat (VariantP _ _ t) = generalize <$> getEnv <*> pure t
+  generalize <$> get <*> pure (TRecord $ Map.fromList ts)
+schemeOfPat (VariantP _ _ t) = generalize <$> get <*> pure t

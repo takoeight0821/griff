@@ -18,8 +18,6 @@ module Language.Griff.Typing.Monad
   , runInfer
   , closeOver
   , lookup
-  , update
-  , getEnv
   , fresh
   ) where
 
@@ -59,12 +57,6 @@ lookup x = do
     Nothing -> throwError $ UnboundVariable x
     Just s  -> instantiate s
 
-update :: (Carrier sig m, InferEff sig) => (Env -> Env) -> m ()
-update = modify
-
-getEnv :: (Carrier sig m, InferEff sig) => m Env
-getEnv = get
-
 fresh :: (Carrier sig m, InferEff sig) => m Ty
 fresh = do
   i <- newId "meta"
@@ -73,7 +65,7 @@ fresh = do
 addScheme :: (Carrier sig m, InferEff sig) => (Id, Scheme) -> m ()
 addScheme (x, sc) = do
   let scope e = Map.insert x sc $ Map.delete x e
-  update scope
+  modify scope
 
 instantiate :: (Carrier sig m, InferEff sig) => Scheme -> m Ty
 instantiate (Forall as t) = do
