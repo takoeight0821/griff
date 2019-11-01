@@ -39,7 +39,6 @@ import           Language.Griff.Typing.Subst
 data TypeError = UnificationFail Ty Ty
                | InfiniteType Id Ty
                | UnboundVariable Id
-               | Ambigious [Constraint]
                | UnificationMismatch [Ty] [Ty]
                | UndefinedType Id
                | UndecidableProj Text
