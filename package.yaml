@@ -40,7 +40,6 @@ ghc-options:
 - -Wall
 - -fwarn-tabs
 - -fwarn-incomplete-record-updates
-- -XNoImplicitPrelude
 
 library:
   source-dirs: src
