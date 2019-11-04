@@ -1,4 +1,3 @@
-{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 module Language.Griff.Desugar where
 
@@ -14,8 +13,7 @@ import           Language.Griff.Typing.Infer (ConMap, convertType)
 import           Language.Griff.Typing.Monad
 
 desugar :: [S.Dec Id] -> Env -> ConMap -> Toplevel
-desugar ds =
-  Toplevel $ mapMaybe (fmap dsScDef . preview S._ScDef) ds
+desugar ds = Toplevel $ mapMaybe (fmap dsScDef . preview S._ScDef) ds
 
 dsScDef :: (a, Id, [Id], S.Exp Id) -> (Id, Exp)
 dsScDef (_, f, ps, e) = (f, foldr Lambda (dsExp e) ps)
