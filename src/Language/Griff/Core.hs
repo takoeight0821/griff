@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveAnyClass    #-}
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE NoImplicitPrelude #-}
@@ -10,7 +9,6 @@ import           Control.Monad
 import           Control.Monad.Fail
 import           Data.Map                    (Map)
 import qualified Data.Map                    as Map
-import           Data.Outputable
 import           Data.Text
 import           GHC.Generics
 import           Language.Griff.Id
@@ -19,6 +17,7 @@ import           Language.Griff.Syntax       (Op (..))
 import           Language.Griff.TypeRep
 import           Language.Griff.Typing.Infer (ConMap)
 import           Language.Griff.Typing.Monad
+import           Text.Show.Pretty            (PrettyVal)
 
 data Exp = Var Id
          | Int Integer
@@ -33,19 +32,25 @@ data Exp = Var Id
          | LetRec [(Id, Exp)] Exp
          | BinOp Op [Exp]
          | Case Exp [(Pat, Exp)]
-  deriving (Eq, Show, Generic, Outputable)
+  deriving (Eq, Show, Generic)
+
+instance PrettyVal Exp
 
 data Pat = VarP Id
          | BoolP Bool
          | RecordP [(Text, Pat)]
          | VariantP Text Pat Ty
-  deriving (Eq, Show, Generic, Outputable)
+  deriving (Eq, Show, Generic)
+
+instance PrettyVal Pat
 
 data Toplevel = Toplevel
   { _scDef   :: [(Id, Exp)]
   , _env     :: Map Id Scheme
   , _typeDef :: ConMap
-  } deriving (Eq, Show, Generic, Outputable)
+  } deriving (Eq, Show, Generic)
+
+instance PrettyVal Toplevel
 
 schemeOf :: (Carrier sig m, InferEff sig, MonadFail m) => Exp -> m Scheme
 schemeOf (Var x) = generalize <$> get <*> lookup x

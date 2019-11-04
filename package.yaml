@@ -31,7 +31,7 @@ dependencies:
 - llvm-hs-pure
 - megaparsec
 - mtl
-- outputable
+- pretty-show
 - parser-combinators
 - prettyprinter
 - text

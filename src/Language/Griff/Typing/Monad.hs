@@ -25,7 +25,6 @@ import           Control.Effect
 import           Control.Effect.Error
 import           Control.Effect.State
 import qualified Data.Map                    as Map
-import           Data.Outputable
 import qualified Data.Set                    as Set
 import           Data.Text                   (Text)
 import           GHC.Generics
@@ -33,6 +32,7 @@ import           Language.Griff.Id
 import           Language.Griff.Prelude
 import           Language.Griff.TypeRep
 import           Language.Griff.Typing.Subst
+import           Text.Show.Pretty
 
 data TypeError = UnificationFail Ty Ty
                | InfiniteType Id Ty
@@ -42,7 +42,7 @@ data TypeError = UnificationFail Ty Ty
                | UndecidableProj Text
   deriving (Show, Generic)
 
-instance Outputable TypeError
+instance PrettyVal TypeError
 
 type Constraint = (Ty, Ty)
 

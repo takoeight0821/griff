@@ -10,17 +10,17 @@ module Language.Griff.Syntax where
 
 import           Control.Lens
 import           Data.Data
-import           Data.Outputable
 import           Data.Text              (Text)
 import           GHC.Generics
 import           Language.Griff.Prelude
 import           Language.Griff.TypeRep (TPrim (..))
 import           Text.Megaparsec.Pos
+import           Text.Show.Pretty
 
-instance Outputable Pos where
-  pprPrec i x = pprPrec i $ unPos x
+instance PrettyVal Pos where
+  prettyVal = prettyVal . unPos
 
-instance Outputable SourcePos
+instance PrettyVal SourcePos
 
 data Exp a = Var SourcePos a
            | Int SourcePos Integer
@@ -39,20 +39,20 @@ data Exp a = Var SourcePos a
            | If SourcePos (Exp a) (Exp a) (Exp a)
   deriving (Eq, Ord, Show, Generic, Data)
 
-instance Outputable a => Outputable (Exp a)
+instance PrettyVal a => PrettyVal (Exp a)
 instance Data a => Plated (Exp a)
 
 data Op = Add | Sub | Mul | Div | Mod | Eq | Neq | Lt | Le | Gt | Ge | And | Or
   deriving (Eq, Ord, Show, Generic, Data)
 
-instance Outputable Op
+instance PrettyVal Op
 
 data Pat a = VarP SourcePos a
            | RecordP SourcePos [(Text, Pat a)]
            | VariantP SourcePos Text (Pat a) (Type a)
   deriving (Eq, Ord, Show, Generic, Data)
 
-instance Outputable a => Outputable (Pat a)
+instance PrettyVal a => PrettyVal (Pat a)
 
 data Dec a = ScSig SourcePos a (Type a)
            | ScDef SourcePos a [a] (Exp a)
@@ -61,7 +61,7 @@ data Dec a = ScSig SourcePos a (Type a)
 
 type ConstructorDef a = (a, [Type a])
 
-instance Outputable a => Outputable (Dec a)
+instance PrettyVal a => PrettyVal (Dec a)
 
 data Type a = TyApp SourcePos a [Type a]
             | TyVar SourcePos a
@@ -71,6 +71,6 @@ data Type a = TyApp SourcePos a [Type a]
             | TyVariant SourcePos [(Text, Type a)]
   deriving (Eq, Ord, Show, Generic, Data)
 
-instance Outputable a => Outputable (Type a)
+instance PrettyVal a => PrettyVal (Type a)
 
 makePrisms ''Dec

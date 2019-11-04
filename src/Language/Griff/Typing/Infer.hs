@@ -15,7 +15,6 @@ import           Control.Monad
 import           Control.Monad.Fail
 import qualified Data.Map                    as Map
 import           Data.Maybe
-import           Data.Outputable
 import           Data.Tuple.Extra            (uncurry3)
 import           GHC.Generics
 import           Language.Griff.Id
@@ -25,9 +24,12 @@ import           Language.Griff.TypeRep
 import           Language.Griff.Typing.Monad
 import           Language.Griff.Typing.Subst
 import           Text.Megaparsec.Pos
+import           Text.Show.Pretty            (PrettyVal)
 
 newtype ConMap = ConMap { unConMap :: Map.Map Id ([Id], Ty) }
-  deriving (Eq, Show, Generic, Outputable, Semigroup, Monoid)
+  deriving (Eq, Show, Generic, Semigroup, Monoid)
+
+instance PrettyVal ConMap
 
 convertType :: Type Id -> Ty
 convertType (TyApp _ con args) = TCon con $ map convertType args
