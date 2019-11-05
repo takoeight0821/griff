@@ -21,10 +21,11 @@ import           Language.Griff.TypeRep
 import           Language.Griff.Typing.Infer (ConMap, convertType)
 import           Language.Griff.Typing.Monad
 
-desugar :: (Carrier sig m, Effect sig, Member Fresh sig) => [S.Dec Id] -> Env -> ConMap -> m (Either TypeError Toplevel)
-desugar ds env conMap = runReader (collectPureScDef scDefs) $ do
-  r <- runInfer env $ mapM dsScDef scDefs
-  pure $ fmap (\(env', ds') -> Toplevel { _scDef = ds', _env = env', _typeDef = conMap}) r
+desugar :: (Carrier sig m, InferEff sig, Member Fresh sig) => [S.Dec Id] -> ConMap -> m Toplevel
+desugar ds conMap = runReader (collectPureScDef scDefs) $ do
+  ds' <- mapM dsScDef scDefs
+  env' <- get
+  pure $ Toplevel { _scDef = ds', _env = env', _typeDef = conMap}
   where
     scDefs = mapMaybe (preview S._ScDef) ds
     collectPureScDef = mapMaybe collect
