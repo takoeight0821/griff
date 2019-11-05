@@ -1,6 +1,8 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 module Language.Griff.FreeVar (freevars) where
 
+import           Control.Lens           (view, _1)
+import           Data.Foldable          (toList)
 import           Data.Set               (Set)
 import qualified Data.Set               as Set
 import           Language.Griff.Core
@@ -18,7 +20,9 @@ freevars (Proj _ e _)  = freevars e
 freevars (Apply e1 e2) = freevars e1 <> freevars e2
 freevars (Lambda x e)  = Set.delete x (freevars e)
 freevars (Let x e1 e2) = freevars e1 <> Set.delete x (freevars e2)
-freevars (LetRec xs e) = deletes (map fst xs) (mconcat (map (freevars . snd) xs) <> freevars e)
+freevars (LetRec xs e) = deletes (map (view _1) xs) $ freevars e <> mconcat (map go xs)
+  where
+    go (_, ps, body) = deletes (toList ps) $ freevars body
 freevars (BinOp _ es) = mconcat $ map freevars es
 freevars (Case e xs) = freevars e <> mconcat (map (uncurry deletes . bimap fvPat freevars) xs)
 

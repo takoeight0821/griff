@@ -29,7 +29,7 @@ data Exp = Var Id
          | Apply Exp Exp
          | Lambda Id Exp
          | Let Id Exp Exp
-         | LetRec [(Id, Exp)] Exp
+         | LetRec [(Id, NonEmpty Id, Exp)] Exp
          | BinOp Op [Exp]
          | Case Exp [(Pat, Exp)]
   deriving (Eq, Show, Generic)
@@ -45,7 +45,7 @@ data Pat = VarP Id
 instance PrettyVal Pat
 
 data Toplevel = Toplevel
-  { _scDef   :: [(Id, Exp)]
+  { _scDef   :: [(Id, NonEmpty Id, Exp)]
   , _env     :: Map Id Scheme
   , _typeDef :: ConMap
   } deriving (Eq, Show, Generic)

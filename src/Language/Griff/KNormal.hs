@@ -15,8 +15,10 @@ import           Language.Griff.Typing.Monad
 
 convert :: (Carrier sig m, Effect sig, Member Fresh sig,
               MonadFail m) =>
-             Toplevel -> m (Either TypeError (Env, [(Id, Exp)]))
-convert toplevel = runInfer env $ mapM (secondM (fmap flatten . conv)) scdefs
+             Toplevel -> m (Either TypeError Toplevel)
+convert toplevel =
+  fmap (\(env', scdefs') -> toplevel { _scDef = scdefs', _env = env' })
+  <$> runInfer env (mapM (secondM (fmap flatten . conv)) scdefs)
   where
     scdefs = _scDef toplevel
     env = _env toplevel

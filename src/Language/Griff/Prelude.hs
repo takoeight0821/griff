@@ -4,12 +4,14 @@ module Language.Griff.Prelude
   ( module Prelude
   , module Data.Bifunctor
   , module Data.Bitraversable
+  , module Data.List.NonEmpty
   , firstM
   , secondM
   ) where
 
 import           Data.Bifunctor
 import           Data.Bitraversable
+import           Data.List.NonEmpty (NonEmpty (..))
 import           Data.Map
 import           Prelude            hiding (lookup)
 import           Text.Show.Pretty
@@ -22,3 +24,5 @@ secondM = bitraverse pure
 
 instance (PrettyVal a, PrettyVal b) => PrettyVal (Map a b) where
   prettyVal x = Con "fromList" [prettyVal $ assocs x]
+
+instance PrettyVal a => PrettyVal (NonEmpty a)
