@@ -13,8 +13,13 @@ import           Language.Griff.Id
 import           Language.Griff.Prelude
 import           Language.Griff.Typing.Monad
 
-convert :: (Carrier sig m, InferEff sig, MonadFail m) => Exp -> m Exp
-convert e = flatten <$> conv e
+convert :: (Carrier sig m, Effect sig, Member Fresh sig,
+              MonadFail m) =>
+             Toplevel -> m (Either TypeError (Env, [(Id, Exp)]))
+convert toplevel = runInfer env $ mapM (secondM (fmap flatten . conv)) scdefs
+  where
+    scdefs = _scDef toplevel
+    env = _env toplevel
 
 insertLet :: (Carrier sig m, InferEff sig, MonadFail m) => Exp -> (Exp -> m Exp) -> m Exp
 insertLet (Var x) k = k (Var x)

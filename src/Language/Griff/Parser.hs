@@ -129,7 +129,7 @@ pLetRec = label "let rec" $ do
   where
     pdef = do
       f <- lowerIdent
-      xs <- many lowerIdent
+      xs <- some lowerIdent
       pKeyword "="
       e1 <- pExp
       return (f, xs, e1)

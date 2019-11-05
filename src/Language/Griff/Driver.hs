@@ -30,7 +30,7 @@ compileFromPath path = runM $ do
     renamed <- rename ast
     (env, conMap) <- typeCheck renamed
     let desugared = desugar renamed env conMap
-    knormalized <- knormalize desugared env
+    knormalized <- knormalize desugared
     liftIO $ dumpIO knormalized
   case result of
     Right () -> pure ()
@@ -50,9 +50,11 @@ typeCheck ast = do
     Right (env, conMap) -> pure (env, conMap)
     Left err            -> throwError $ dumpStr err
 
-knormalize :: (Carrier sig m, MonadFail m, Effect sig, Member (Error String) sig, Member Fresh sig) => Core.Toplevel -> Env -> m (Env, [(Id, Core.Exp)])
-knormalize desugared env = do
-  kn <- runInfer env $ mapM (secondM KNormal.convert) (Core._scDef desugared)
+knormalize :: (Carrier sig m, MonadFail m, Effect sig,
+                 Member (Error String) sig, Member Fresh sig) =>
+                Core.Toplevel -> m (Env, [(Id, Core.Exp)])
+knormalize desugared = do
+  kn <- KNormal.convert desugared
   case kn of
     Right e -> pure e
     Left e  -> throwError $ dumpStr e
