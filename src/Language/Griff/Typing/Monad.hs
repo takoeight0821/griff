@@ -1,15 +1,17 @@
-{-# LANGUAGE ConstraintKinds   #-}
-{-# LANGUAGE DataKinds         #-}
-{-# LANGUAGE DeriveGeneric     #-}
-{-# LANGUAGE FlexibleContexts  #-}
-{-# LANGUAGE GADTs             #-}
-{-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeFamilies      #-}
+{-# LANGUAGE ConstraintKinds            #-}
+{-# LANGUAGE DataKinds                  #-}
+{-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE GADTs                      #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE NoImplicitPrelude          #-}
+{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE TypeFamilies               #-}
 module Language.Griff.Typing.Monad
   ( TypeError(..)
   , Constraint
   , Env
+  , ConMap(..)
   , InferEff
   , addScheme
   , instantiate
@@ -19,10 +21,12 @@ module Language.Griff.Typing.Monad
   , closeOver
   , lookup
   , fresh
+  , expandTCon
   ) where
 
 import           Control.Effect
 import           Control.Effect.Error
+import           Control.Effect.Reader
 import           Control.Effect.State
 import qualified Data.Map                    as Map
 import qualified Data.Set                    as Set
@@ -48,7 +52,12 @@ type Constraint = (Ty, Ty)
 
 type Env = Map.Map Id Scheme
 
-type InferEff sig = (Member (Error TypeError) sig, Member (State Env) sig, Member Fresh sig)
+newtype ConMap = ConMap { unConMap :: Map.Map Id ([Id], Ty) }
+  deriving (Eq, Show, Generic, Semigroup, Monoid)
+
+instance PrettyVal ConMap
+
+type InferEff sig = (Member (Error TypeError) sig, Member (State Env) sig, Member (State ConMap) sig, Member Fresh sig)
 
 lookup :: (Carrier sig m, InferEff sig) => Id -> m Ty
 lookup x = do
@@ -118,8 +127,17 @@ bind a t | t == TVar a = return mempty
 occursCheck :: Substitutable a => Id -> a -> Bool
 occursCheck a t = a `Set.member` ftv t
 
-runInfer :: Env -> StateC Env (ErrorC TypeError m) a -> m (Either TypeError (Env, a))
-runInfer env m = runError $ runState env m
+runInfer :: Functor m => Env -> StateC ConMap (StateC Env (ErrorC TypeError m)) a -> m (Either TypeError (Env, a))
+runInfer env m = runError $ runState env $ evalState mempty m
 
 closeOver :: Ty -> Scheme
 closeOver = generalize mempty
+
+expandTCon :: (Carrier sig m, InferEff sig) => Ty -> m Ty
+expandTCon (TCon con args) = do
+  env <- get
+  case Map.lookup con $ unConMap env of
+    Nothing -> throwError $ UndefinedType con
+    Just (params, ty) ->
+      pure $ apply (Subst $ Map.fromList $ zip params args) ty
+expandTCon t = pure t

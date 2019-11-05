@@ -18,21 +18,20 @@ import           Language.Griff.Id
 import           Language.Griff.Prelude
 import qualified Language.Griff.Syntax       as S
 import           Language.Griff.TypeRep
-import           Language.Griff.Typing.Infer (ConMap, convertType)
+import           Language.Griff.Typing.Infer (convertType)
 import           Language.Griff.Typing.Monad
 
-desugar :: (Carrier sig m, InferEff sig, Member Fresh sig) => [S.Dec Id] -> ConMap -> m Toplevel
-desugar ds conMap = runReader (collectPureScDef scDefs) $ do
+desugar :: (Carrier sig m, InferEff sig) => [S.Dec Id] -> m Toplevel
+desugar ds = runReader (collectPureScDef scDefs) $ do
   ds' <- mapM dsScDef scDefs
-  env' <- get
-  pure $ Toplevel { _scDef = ds', _env = env', _typeDef = conMap}
+  pure $ Toplevel { _scDef = ds'}
   where
     scDefs = mapMaybe (preview S._ScDef) ds
     collectPureScDef = mapMaybe collect
     collect (_, x, [], _) = Just x
     collect _             = Nothing
 
-dsScDef :: (Carrier sig m, InferEff sig, Member Fresh sig, Member (Reader [Id]) sig) => (a, Id, [Id], S.Exp Id) -> m (Id, NonEmpty Id, Exp)
+dsScDef :: (Carrier sig m, InferEff sig, Member (Reader [Id]) sig) => (a, Id, [Id], S.Exp Id) -> m (Id, NonEmpty Id, Exp)
 dsScDef (_, f, [], e)   = do
   env <- get
   case Map.lookup f env of
@@ -43,7 +42,7 @@ dsScDef (_, f, [], e)   = do
       (f, x :| [],) <$> dsExp e
 dsScDef (_, f, p:ps, e) = (f, p :| ps,) <$> dsExp e
 
-dsExp :: (Carrier sig m, InferEff sig, Member Fresh sig, Member (Reader [Id]) sig) => S.Exp Id -> m Exp
+dsExp :: (Carrier sig m, InferEff sig, Member (Reader [Id]) sig) => S.Exp Id -> m Exp
 dsExp (S.Var _ x)    = do
   isPureScDef <- asks @[Id] (elem x)
   if isPureScDef

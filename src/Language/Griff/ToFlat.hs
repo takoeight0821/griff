@@ -8,4 +8,4 @@ import           Language.Griff.Id
 
 
 convert :: Toplevel -> [ScDef]
-convert (Toplevel scdefs env conMap) = undefined
+convert (Toplevel scdefs) = undefined

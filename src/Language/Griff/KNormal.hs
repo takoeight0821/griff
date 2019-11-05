@@ -5,7 +5,6 @@
 module Language.Griff.KNormal (convert) where
 
 import           Control.Effect
-import           Control.Effect.State
 import           Control.Monad.Fail
 import           Data.Bifunctor
 import           Data.Text                   (Text)
@@ -14,11 +13,10 @@ import           Language.Griff.Id
 import           Language.Griff.Prelude
 import           Language.Griff.Typing.Monad
 
-convert :: (Carrier sig m, InferEff sig, Member Fresh sig, MonadFail m) => Toplevel -> m Toplevel
+convert :: (Carrier sig m, InferEff sig, MonadFail m) => Toplevel -> m Toplevel
 convert toplevel = do
   scDefs' <- mapM (secondM (fmap flatten . conv)) scdefs
-  env' <- get
-  pure $ toplevel { _scDef = scDefs', _env = env' }
+  pure $ toplevel { _scDef = scDefs' }
   where
     scdefs = _scDef toplevel
 

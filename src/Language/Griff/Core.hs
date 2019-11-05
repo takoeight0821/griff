@@ -7,7 +7,6 @@ import           Control.Effect
 import           Control.Effect.State
 import           Control.Monad
 import           Control.Monad.Fail
-import           Data.Map                    (Map)
 import qualified Data.Map                    as Map
 import           Data.Text
 import           GHC.Generics
@@ -15,7 +14,6 @@ import           Language.Griff.Id
 import           Language.Griff.Prelude
 import           Language.Griff.Syntax       (Op (..))
 import           Language.Griff.TypeRep
-import           Language.Griff.Typing.Infer (ConMap)
 import           Language.Griff.Typing.Monad
 import           Text.Show.Pretty            (PrettyVal)
 
@@ -44,10 +42,10 @@ data Pat = VarP Id
 
 instance PrettyVal Pat
 
-data Toplevel = Toplevel
+newtype Toplevel = Toplevel
   { _scDef   :: [(Id, NonEmpty Id, Exp)]
-  , _env     :: Map Id Scheme
-  , _typeDef :: ConMap
+  -- , _env     :: Map Id Scheme
+  -- , _typeDef :: ConMap
   } deriving (Eq, Show, Generic)
 
 instance PrettyVal Toplevel
@@ -88,7 +86,7 @@ schemeOf (BinOp p _) = case p of
   And -> pure $ Forall [] (TPrim TBool)
   Or  -> pure $ Forall [] (TPrim TBool)
 
-schemeOfPat :: (Carrier sig f, Member (Error TypeError) sig, Member (State Env) sig, Member Fresh sig) => Pat -> f Scheme
+schemeOfPat :: (Carrier sig f, InferEff sig) => Pat -> f Scheme
 schemeOfPat (VarP x) = generalize <$> get <*> lookup x
 schemeOfPat (BoolP _) = pure $ Forall [] (TPrim TBool)
 schemeOfPat (RecordP xs) = do

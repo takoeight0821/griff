@@ -1,9 +1,11 @@
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE TypeApplications  #-}
 module Language.Griff.Driver (compileFromPath) where
 
 import           Control.Effect
 import           Control.Effect.Error
+import           Control.Effect.State
 import           Control.Monad.Fail
 import           Control.Monad.IO.Class
 import           Data.Text                   (Text)
@@ -27,10 +29,14 @@ compileFromPath path = runM $ do
     ast <- parseSource src
     renamed <- rename ast
     r <- runInfer mempty $ do
-      conMap <- infer renamed
-      desugared <- Desugar.desugar renamed conMap
+      infer renamed
+      desugared <- Desugar.desugar renamed
       knormalized <- KNormal.convert desugared
       liftIO $ dumpIO knormalized
+      env <- get @Env
+      liftIO $ dumpIO env
+      conMap <- get @ConMap
+      liftIO $ dumpIO conMap
     case r of
       Right _  -> pure ()
       Left err -> throwError $ dumpStr err
