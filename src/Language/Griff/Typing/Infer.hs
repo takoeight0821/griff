@@ -56,7 +56,7 @@ infer ds = do
   mapM_ addScheme (zip (map (view _2) scDefs) scs)
   modify @Env $ apply sub
   where
-    prepare = mapM_ (\x -> fresh >>= \tv -> addScheme (x, Forall [] tv))
+    prepare = mapM_ (\x -> newMeta >>= \tv -> addScheme (x, Forall [] tv))
 
 inferDef :: (Carrier sig m, InferEff sig, MonadFail m) => (SourcePos, Id, [Id], Exp Id) -> m (Ty, [Constraint])
 inferDef (s, f, xs, e) = do
@@ -90,10 +90,10 @@ inferExp (Ascribe _ x t) = do
 inferExp (Apply _ e1 e2) = do
   (e1Type, cs1) <- inferExp e1
   (e2Type, cs2) <- inferExp e2
-  tv <- fresh
+  tv <- newMeta
   pure (tv, (TArr e2Type tv, e1Type) : cs2 <> cs1)
 inferExp (Lambda _ x e) = do
-  tv <- fresh
+  tv <- newMeta
   addScheme (x, Forall [] tv)
   (eType, cs) <- inferExp e
   pure (TArr tv eType, cs)
@@ -110,7 +110,7 @@ inferExp (LetRec s ds e2) = do
   (t1, cs1) <- inferExp e2
   pure (t1, cs1 <> cs0)
   where
-    prepare f = fresh >>= \tv -> addScheme (f, Forall [] tv)
+    prepare f = newMeta >>= \tv -> addScheme (f, Forall [] tv)
     inferRec env f xs e = do
       (t0, cs0) <- inferExp $ foldr (Lambda s) e xs
       tv <- lookup f
@@ -120,7 +120,7 @@ inferExp (BinOp _ op e1 e2) = do
   (e1t, e1cs) <- inferExp e1
   (e2t, e2cs) <- inferExp e2
   opt <- ops op
-  ret <- fresh
+  ret <- newMeta
   pure (ret, (opt, e1t `TArr` (e2t `TArr` ret)) : e1cs <> e2cs)
 inferExp (If _ c t f) = do
   (ct, ccs) <- inferExp c
@@ -143,11 +143,11 @@ inferClause t0 (pat, e) = do
 
 inferPat :: (Carrier sig m, InferEff sig, MonadFail m) => Ty -> Pat Id -> m [Constraint]
 inferPat t0 (VarP _ x) = do
-  tv <- fresh
+  tv <- newMeta
   addScheme (x, Forall [] tv)
   pure [(t0, tv)]
 inferPat t0 (RecordP _ xs) = do
-  ts <- mapM (const fresh) xs
+  ts <- mapM (const newMeta) xs
   let ty = TRecord $ Map.fromList $ zip (map fst xs) ts
   cs <- concat <$> zipWithM inferPat ts (map snd xs)
   pure $ (t0, ty) : cs
@@ -164,10 +164,10 @@ ops Mul = pure (TPrim TInt `TArr` (TPrim TInt `TArr` TPrim TInt))
 ops Div = pure (TPrim TInt `TArr` (TPrim TInt `TArr` TPrim TInt))
 ops Mod = pure (TPrim TInt `TArr` (TPrim TInt `TArr` TPrim TInt))
 ops Eq = do
-  t <- fresh
+  t <- newMeta
   pure (t `TArr` (t `TArr` TPrim TBool))
 ops Neq = do
-  t <- fresh
+  t <- newMeta
   pure (t `TArr` (t `TArr` TPrim TBool))
 ops Lt = pure (TPrim TInt `TArr` (TPrim TInt `TArr` TPrim TBool))
 ops Le = pure (TPrim TInt `TArr` (TPrim TInt `TArr` TPrim TBool))

@@ -20,13 +20,12 @@ module Language.Griff.Typing.Monad
   , runInfer
   , closeOver
   , lookup
-  , fresh
+  , newMeta
   , expandTCon
   ) where
 
 import           Control.Effect
 import           Control.Effect.Error
-import           Control.Effect.Reader
 import           Control.Effect.State
 import qualified Data.Map                    as Map
 import qualified Data.Set                    as Set
@@ -66,8 +65,8 @@ lookup x = do
     Nothing -> throwError $ UnboundVariable x
     Just s  -> instantiate s
 
-fresh :: (Carrier sig m, InferEff sig) => m Ty
-fresh = do
+newMeta :: (Carrier sig m, InferEff sig) => m Ty
+newMeta = do
   i <- newId "meta"
   return $ TVar i
 
@@ -78,7 +77,7 @@ addScheme (x, sc) = do
 
 instantiate :: (Carrier sig m, InferEff sig) => Scheme -> m Ty
 instantiate (Forall as t) = do
-  as' <- mapM (const fresh) as
+  as' <- mapM (const newMeta) as
   let s = Subst $ Map.fromList $ zip as as'
   return $ apply s t
 
