@@ -5,6 +5,8 @@ module Language.Griff.Prelude
   , module Data.Bifunctor
   , module Data.Bitraversable
   , module Data.List.NonEmpty
+  , Text
+  , Set
   , firstM
   , secondM
   ) where
@@ -13,6 +15,8 @@ import           Data.Bifunctor
 import           Data.Bitraversable
 import           Data.List.NonEmpty (NonEmpty (..))
 import           Data.Map
+import           Data.Set           (Set)
+import           Data.Text          (Text)
 import           Prelude            hiding (lookup)
 import           Text.Show.Pretty
 
