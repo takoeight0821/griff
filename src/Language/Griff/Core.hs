@@ -8,7 +8,6 @@ import           Control.Effect.State
 import           Control.Monad
 import           Control.Monad.Fail
 import qualified Data.Map                    as Map
-import           Data.Text
 import           GHC.Generics
 import           Language.Griff.Id
 import           Language.Griff.Prelude

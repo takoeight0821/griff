@@ -4,7 +4,7 @@ module Language.Griff.Parser (pExp, pDec, pDecs) where
 
 import           Control.Monad
 import           Control.Monad.Combinators.Expr
-import           Data.Text                      (Text, pack)
+import           Data.Text                      (pack)
 import           Data.Void
 import           Language.Griff.Prelude
 import           Language.Griff.Syntax

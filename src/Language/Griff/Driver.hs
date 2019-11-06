@@ -8,7 +8,6 @@ import           Control.Effect.Error
 import           Control.Effect.State
 import           Control.Monad.Fail
 import           Control.Monad.IO.Class
-import           Data.Text                   (Text)
 import qualified Data.Text.IO                as T
 import qualified Language.Griff.Desugar      as Desugar
 import qualified Language.Griff.KNormal      as KNormal

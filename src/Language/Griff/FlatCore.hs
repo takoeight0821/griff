@@ -3,7 +3,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 module Language.Griff.FlatCore where
 
-import           Data.Text              (Text)
 import           GHC.Generics
 import           Language.Griff.Core    (Op)
 import           Language.Griff.Id

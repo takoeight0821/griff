@@ -8,7 +8,7 @@ module Language.Griff.Id where
 import           Control.Effect
 import           Data.Data
 import           Data.String
-import           Data.Text              (Text, pack, unpack)
+import           Data.Text              (pack, unpack)
 import           GHC.Generics           (Generic)
 import           Language.Griff.Prelude
 import           Language.Griff.Uniq

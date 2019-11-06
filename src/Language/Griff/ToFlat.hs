@@ -7,7 +7,6 @@ import           Control.Effect.Fresh
 import           Control.Effect.State
 import           Control.Monad
 import           Data.List                   (sortOn)
-import           Data.Map                    (Map)
 import qualified Data.Map                    as Map
 import qualified Data.Set                    as Set
 import           Language.Griff.Core         as C

@@ -4,8 +4,6 @@
 module Language.Griff.TypeRep where
 
 import           Data.Data
-import           Data.Map
-import           Data.Text
 import           GHC.Generics
 import           Language.Griff.Id
 import           Language.Griff.Prelude

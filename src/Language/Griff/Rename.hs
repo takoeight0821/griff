@@ -14,11 +14,9 @@ import           Control.Effect.Reader
 import           Control.Effect.State
 import           Control.Lens
 import           Control.Monad
-import           Data.Map               (Map)
 import qualified Data.Map               as Map
 import           Data.Maybe
 import qualified Data.Set               as Set
-import           Data.Text              (Text)
 import           Language.Griff.Id
 import           Language.Griff.Prelude
 import           Language.Griff.Syntax

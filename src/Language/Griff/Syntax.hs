@@ -10,7 +10,6 @@ module Language.Griff.Syntax where
 
 import           Control.Lens
 import           Data.Data
-import           Data.Text              (Text)
 import           GHC.Generics
 import           Language.Griff.Prelude
 import           Language.Griff.TypeRep (TPrim (..))

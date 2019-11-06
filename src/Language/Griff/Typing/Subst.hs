@@ -2,9 +2,7 @@
 {-# LANGUAGE NoImplicitPrelude          #-}
 module Language.Griff.Typing.Subst (Substitutable(..), Subst(..)) where
 
-import           Data.Map               (Map)
 import qualified Data.Map               as Map
-import           Data.Set               (Set)
 import qualified Data.Set               as Set
 import           Language.Griff.Id
 import           Language.Griff.Prelude

@@ -7,7 +7,6 @@ module Language.Griff.KNormal (convert) where
 import           Control.Effect
 import           Control.Monad.Fail
 import           Data.Bifunctor
-import           Data.Text                   (Text)
 import           Language.Griff.Core
 import           Language.Griff.Id
 import           Language.Griff.Prelude

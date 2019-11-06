@@ -7,6 +7,7 @@ module Language.Griff.Prelude
   , module Data.List.NonEmpty
   , Text
   , Set
+  , Map
   , firstM
   , secondM
   ) where

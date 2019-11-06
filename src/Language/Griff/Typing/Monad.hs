@@ -29,7 +29,6 @@ import           Control.Effect.Error
 import           Control.Effect.State
 import qualified Data.Map                    as Map
 import qualified Data.Set                    as Set
-import           Data.Text                   (Text)
 import           GHC.Generics
 import           Language.Griff.Id
 import           Language.Griff.Prelude
@@ -49,9 +48,9 @@ instance PrettyVal TypeError
 
 type Constraint = (Ty, Ty)
 
-type Env = Map.Map Id Scheme
+type Env = Map Id Scheme
 
-newtype ConMap = ConMap { unConMap :: Map.Map Id ([Id], Ty) }
+newtype ConMap = ConMap { unConMap :: Map Id ([Id], Ty) }
   deriving (Eq, Show, Generic, Semigroup, Monoid)
 
 instance PrettyVal ConMap
