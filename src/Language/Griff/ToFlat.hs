@@ -6,7 +6,7 @@ import           Control.Effect
 import           Control.Effect.Fresh
 import           Control.Effect.State
 import           Control.Monad
-import           Data.List                   (sortOn)
+import qualified Data.List                   as List
 import qualified Data.Map                    as Map
 import qualified Data.Set                    as Set
 import           Language.Griff.Core         as C
@@ -18,6 +18,7 @@ import           Language.Griff.Typing.Monad hiding (fresh)
 data ToFlatEnv = ToFlatEnv
   { record  :: Set [Text] -- ソート済みのキーリストの集合
   , variant :: Map Text Int
+  , defs    :: [ScDef]
   }
 
 -- すでにレコードのキーのリストが登録済みなら、それをもとに値をソートする
@@ -29,7 +30,7 @@ sortRecord r = do
     modify (\env -> env { record = record env <> Set.singleton keys })
   pure $ map snd r'
   where
-    r' = sortOn fst r
+    r' = List.sortOn fst r
     keys = map fst r'
 
 -- タグが登録済みならそれを返す

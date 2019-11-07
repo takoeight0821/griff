@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE NoImplicitPrelude #-}
-module Language.Griff.Core (Exp(..), Op(..), Pat(..), Toplevel(..), schemeOf, schemeOfPat) where
+module Language.Griff.Core (Exp(..), Op(..), Pat(..), ScDef, Toplevel(..), schemeOf, schemeOfPat) where
 
 import           Control.Effect
 import           Control.Effect.State
@@ -41,10 +41,10 @@ data Pat = VarP Id
 
 instance PrettyVal Pat
 
+type ScDef = (Id, NonEmpty Id, Exp)
+
 newtype Toplevel = Toplevel
   { _scDef   :: [(Id, NonEmpty Id, Exp)]
-  -- , _env     :: Map Id Scheme
-  -- , _typeDef :: ConMap
   } deriving (Eq, Show, Generic)
 
 instance PrettyVal Toplevel
