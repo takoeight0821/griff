@@ -18,7 +18,7 @@ import           Language.Griff.Typing.Monad hiding (fresh)
 data ToFlatEnv = ToFlatEnv
   { record  :: Set [Text] -- ソート済みのキーリストの集合
   , variant :: Map Text Int
-  , defs    :: [ScDef]
+  , defs    :: [F.ScDef]
   }
 
 -- すでにレコードのキーのリストが登録済みなら、それをもとに値をソートする
@@ -45,5 +45,5 @@ variantTag tag = do
       pure i
     Just i -> pure i
 
-convert :: (Carrier sig m, InferEff sig) => Toplevel -> m [ScDef]
+convert :: (Carrier sig m, InferEff sig) => Toplevel -> m [F.ScDef]
 convert (Toplevel scdefs) = undefined
