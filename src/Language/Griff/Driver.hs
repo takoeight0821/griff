@@ -11,14 +11,15 @@ import           Control.Monad.IO.Class
 import qualified Data.Text.IO                as T
 import qualified Language.Griff.Desugar      as Desugar
 import qualified Language.Griff.KNormal      as KNormal
-import           Language.Griff.Parser
+-- import           Language.Griff.Parser
+import           Language.Griff.NewParser
 import           Language.Griff.Prelude
 import           Language.Griff.Rename
 import           Language.Griff.Syntax
 import           Language.Griff.Typing.Infer
 import           Language.Griff.Typing.Monad
 import           Language.Griff.Uniq
-import           Text.Megaparsec
+import           Text.Megaparsec             (errorBundlePretty)
 import           Text.Show.Pretty
 
 compileFromPath :: (MonadFail m, MonadIO m) => FilePath -> m ()
@@ -45,7 +46,7 @@ compileFromPath path = runM $ do
 
 parseSource :: (Member (Error String) sig, Carrier sig f) => Text -> f [Dec Text]
 parseSource src = do
-  let ast = parse (pDecs <* eof) "<stdin>" src
+  let ast = parse "<stdin>" src
   case ast of
     Right ast' -> pure ast'
     Left err   -> throwError $ errorBundlePretty err
