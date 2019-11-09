@@ -19,14 +19,14 @@ sum lst =
     | <cons = { car = x, cdr = xs }> as List Int => x + sum xs;
 
 sumAcc lst =
-  let rec go lst acc =
+  let go lst acc =
     case lst of
       | <nil = _> as List Int => acc
       | <cons = { car = x, cdr = xs }> as List Int => go xs (x + acc)
   in go lst 0;
 
 evenOdd x =
-  let rec even x =
+  let even x =
     if x == 0 then true
     else odd (x - 1)
   and odd x =
