@@ -5,9 +5,9 @@ module Language.Griff.NewParser
   )
 where
 
-import           Control.Monad                  (void)
+import           Control.Monad
 import           Control.Monad.Combinators.Expr
-import           Data.String                    (fromString)
+import           Data.Text                      (pack)
 import           Data.Void
 import           Language.Griff.Prelude
 import           Language.Griff.Syntax
@@ -17,29 +17,16 @@ import qualified Text.Megaparsec
 import           Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer     as L
 
-import           Debug.Trace
-import           Text.Megaparsec.Debug
-
 type Parser = Parsec Void Text
 
 parse :: String -> Text -> Either (ParseErrorBundle Text Void) [Dec Text]
-parse = Text.Megaparsec.parse (parseDecs <* eof)
-
-lineComment :: Parser ()
-lineComment = L.skipLineComment "--"
-
-blockComment :: Parser ()
-blockComment = L.skipBlockCommentNested "{-" "-}"
+parse = Text.Megaparsec.parse (pDecs <* eof)
 
 sc :: Parser ()
-sc = L.space (void $ some (char ' ' <|> char '\t')) lineComment blockComment
-
-scn :: Parser ()
-scn = L.space space1 lineComment blockComment
-
-parens :: Text -> Text -> Parser a -> Parser a
-parens left right inter =
-  between (symbol left <* try scn) (symbol right) (inter <* try scn)
+sc = L.space
+  space1
+  (L.skipLineComment "--")
+  (L.skipBlockCommentNested "{-" "-}")
 
 lexeme :: Parser a -> Parser a
 lexeme = L.lexeme sc
@@ -47,333 +34,245 @@ lexeme = L.lexeme sc
 symbol :: Text -> Parser Text
 symbol = L.symbol sc
 
-consumeKeyword :: Text -> Parser ()
-consumeKeyword keyword =
-  void $ lexeme (string keyword <* notFollowedBy alphaNumChar)
+charLiteral :: Parser Char
+charLiteral = between (char '\'') (char '\'') L.charLiteral
 
-consumeOperator :: Text -> Parser ()
-consumeOperator op = void $ lexeme $ string op <* notFollowedBy
-  (oneOf opLetter)
-  where opLetter = "+-*/%=><:;|&" :: String
+stringLiteral :: Parser Text
+stringLiteral = pack <$> (char '\"' *> manyTill L.charLiteral (char '\"'))
+
+integer :: Parser Integer
+integer = lexeme L.decimal
+
+pKeyword :: Text -> Parser ()
+pKeyword keyword = void $ lexeme (string keyword <* notFollowedBy alphaNumChar)
+
+opLetter :: Parser Char
+opLetter = oneOf ("+-*/%=><:;|&" :: String)
+
+pOperator :: Text -> Parser ()
+pOperator op = void $ lexeme (string op <* notFollowedBy opLetter)
 
 reserved :: Parser ()
-reserved = void $ choice $ map
-  (try . consumeKeyword)
-  [ "let"
-  , "in"
-  , "fn"
-  , "case"
-  , "of"
-  , "as"
-  , "type"
-  , "True"
-  , "False"
-  , "Int"
-  , "Bool"
-  , "Char"
-  , "String"
-  , "if"
-  , "then"
-  , "else"
-  ]
+reserved = void $ choice $ map (try . pKeyword) ["let", "in", "and", "rec", "fn", "case", "of", "as", "type", "true", "false", "Int", "Bool", "Char", "String", "if", "then", "else"]
 
 lowerIdent :: Parser Text
-lowerIdent = label "lower identifier" $ lexeme $ fromString <$> do
+lowerIdent = lexeme $ do
   notFollowedBy reserved
-  (:) <$> (lowerChar <|> char '_') <*> many (alphaNumChar <|> char '_')
+  pack <$> ((:) <$> (lowerChar <|> char '_') <*> many (alphaNumChar <|> char '_') <?> "lower identifier")
 
 upperIdent :: Parser Text
-upperIdent = label "upper identifier" $ lexeme $ fromString <$> do
+upperIdent = lexeme $ do
   notFollowedBy reserved
-  (:) <$> upperChar <*> many alphaNumChar
+  pack <$> ((:) <$> upperChar <*> many alphaNumChar <?> "upper identifier")
 
-parseVar :: Parser (Exp Text)
-parseVar = label "variable" $ Var <$> getSourcePos <*> lowerIdent
+pVariable :: Parser (Exp Text)
+pVariable =
+  Var <$> getSourcePos
+  <*> lowerIdent
+  <?> "variable"
 
-parseInt :: Parser (Exp Text)
-parseInt = label "integer" $ Int <$> getSourcePos <*> integer
-  where integer = lexeme L.decimal
+pInteger :: Parser (Exp Text)
+pInteger = Int <$> getSourcePos <*> integer <?> "integer"
 
-parseChar :: Parser (Exp Text)
-parseChar =
-  label "char"
-    $   lexeme
-    $   Char
-    <$> getSourcePos
-    <*> between (char '\'') (char '\'') L.charLiteral
+pChar :: Parser (Exp Text)
+pChar = Char <$> getSourcePos <*> charLiteral <?> "char"
 
-parseString :: Parser (Exp Text)
-parseString =
-  label "string"
-    $   lexeme
-    $   String
-    <$> getSourcePos
-    <*> (fromString <$> (char '\"' >> manyTill L.charLiteral (char '\"')))
+pString :: Parser (Exp Text)
+pString = String <$> getSourcePos <*> lexeme stringLiteral <?> "string"
 
-parseRecord :: Parser (Exp Text)
-parseRecord =
-  label "record"
-    $       parens "{" "}"
-    $       Record
-    <$>     getSourcePos
-    <*>     parseField
-    `sepBy` L.symbol scn ","
+pRecord :: Parser (Exp Text)
+pRecord = label "record" $ between (symbol "{") (symbol "}") $
+  Record <$> getSourcePos <*> field `sepBy` symbol ","
+  where
+    field = (,) <$> lowerIdent <* pOperator "=" <*> pExp
 
-parseProj :: Parser (Exp Text)
-parseProj = label "proj" $ parens "<" ">" $ do
-  pos        <- getSourcePos
-  (key, val) <- parseField
-  pure $ Proj pos key val
+pProj :: Parser (Exp Text)
+pProj = label "proj" $ between (symbol "<") (symbol ">") $
+  Proj <$> getSourcePos <*> lowerIdent <* pOperator "=" <*> pExp
 
-parseField :: Parser (Text, Exp Text)
-parseField = do
-  key <- lowerIdent <* try scn
-  consumeOperator "=" <* try scn
-  val <- parseExp <* try scn
-  return (key, val)
+pSingleExp :: Parser (Exp Text)
+pSingleExp =
+  try (Bool <$> getSourcePos <* pKeyword "true" <*> pure True)
+  <|> try (Bool <$> getSourcePos <* pKeyword "false" <*> pure False)
+  <|> pVariable
+  <|> pInteger
+  <|> pChar
+  <|> pString
+  <|> pRecord
+  <|> pProj
+  <|> parens pExp
 
-parseTrue :: Parser (Exp Text)
-parseTrue = Bool <$> getSourcePos <* consumeKeyword "True" <*> pure True
-
-parseFalse :: Parser (Exp Text)
-parseFalse = Bool <$> getSourcePos <* consumeKeyword "False" <*> pure False
-
-parseSingleExp :: Parser (Exp Text)
-parseSingleExp =
-  try parseTrue
-    <|> try parseFalse
-    <|> parseVar
-    <|> parseInt
-    <|> parseChar
-    <|> parseString
-    <|> parseRecord
-    <|> parseProj
-    <|> parens "(" ")" parseExp
-
-parseApply :: Parser (Exp Text)
-parseApply = L.lineFold scn $ \sc' -> do
-  s  <- getSourcePos
-  f  <- parseSingleExp
-  try sc'
-  x  <-  parseSingleExp
-  xs <- many (try sc' >> parseSingleExp)
-  pure $ foldl (Apply s) f (x : xs)
-
-parseLambda :: Parser (Exp Text)
-parseLambda = label "lambda" $ L.lineFold scn $ \sc' -> do
+pApply :: Parser (Exp Text)
+pApply = do
   s <- getSourcePos
-  consumeKeyword "fn"
-  x  <- lowerIdent
+  f <- pSingleExp
+  x <- pSingleExp
+  xs <- many pSingleExp
+  return $ foldl (Apply s) f (x:xs)
+
+pLambda :: Parser (Exp Text)
+pLambda = label "lambda" $ do
+  s <- getSourcePos
+  pKeyword "fn"
+  x <- lowerIdent
   xs <- many lowerIdent
-  try sc'
-  consumeOperator "=>"
-  try sc'
-  e <- parseExp
-  pure $ foldr (Lambda s) e (x : xs)
+  pOperator "->"
+  e <- pExp
+  return $ Lambda s x $ foldr (Lambda s) e xs
 
-parseLet :: Parser (Exp Text)
-parseLet = label "let" $ do
+pLetRec :: Parser (Exp Text)
+pLetRec = label "let rec" $ do
   s <- getSourcePos
-  consumeKeyword "let"
-  fs <- L.lineFold scn $ \sc' -> parseDef `sepBy1` try sc'
-  L.lineFold scn $ \sc' -> do
-    consumeKeyword "in"
-    try sc'
-    LetRec s fs <$> parseExp
- where
-  parseDef = L.lineFold scn $ \sc' -> do
-    f  <- lowerIdent
-    xs <- many lowerIdent
-    try sc'
-    consumeOperator "="
-    try sc'
-    body <- parseExp
-    pure (f, xs, body)
+  pKeyword "let"
+  f <- pdef
+  fs <- many (pKeyword "and" >> pdef)
+  pKeyword "in"
+  LetRec s (f:fs) <$> pExp
+  where
+    pdef = do
+      f <- lowerIdent
+      xs <- many lowerIdent
+      pKeyword "="
+      e1 <- pExp
+      return (f, xs, e1)
 
-parseTerm :: Parser (Exp Text)
-parseTerm = try parseApply <|> parseSingleExp
+parens :: Parser a -> Parser a
+parens = between (symbol "(") (symbol ")")
 
-parseBinOp :: Parser (Exp Text)
-parseBinOp = L.lineFold scn $ \sc' -> makeExprParser parseTerm (opTable sc')
- where
-  opTable sc' =
-    [ [ neutral sc' "==" $ \s l h -> BinOp s Eq l h
-      , neutral sc' "/=" $ \s l h -> BinOp s Neq l h
-      ]
-    , [ left sc' "*" $ \s l h -> BinOp s Mul l h
-      , left sc' "/" $ \s l h -> BinOp s Div l h
-      ]
-    , [ left sc' "+" $ \s l h -> BinOp s Add l h
-      , left sc' "-" $ \s l h -> BinOp s Sub l h
-      ]
-    ]
-  left sc' name f = InfixL
-    (getSourcePos >>= \s -> try sc' >> consumeOperator name >> return (f s))
-  neutral sc' name f = InfixN
-    (getSourcePos >>= \s -> try sc' >> consumeOperator name >> return (f s))
+pTerm :: Parser (Exp Text)
+pTerm = try pApply
+        <|> pSingleExp
 
-parseIf :: Parser (Exp Text)
-parseIf = label "if" $ do
-  s     <- getSourcePos
-  level <- L.indentLevel
-  c     <- L.lineFold scn $ \sc' -> do
-    consumeKeyword "if"
-    try sc'
-    parseExp
-  void $ try (L.indentGuard scn EQ level) <|> L.indentGuard scn GT level
-  t <- L.lineFold scn $ \sc' -> do
-    consumeKeyword "then"
-    try sc'
-    parseExp
-  void $ try (L.indentGuard scn EQ level) <|> L.indentGuard scn GT level
-  f <- L.lineFold scn $ \sc' -> do
-    consumeKeyword "else"
-    try sc'
-    parseExp
-  pure $ If s c t f
+pBinOp :: Parser (Exp Text)
+pBinOp = makeExprParser pTerm opTable
 
-parseCase :: Parser (Exp Text)
-parseCase = label "case" $ do
+opTable :: [[Operator Parser (Exp Text)]]
+opTable =
+  [ [ neutral "==" $ \s l h -> BinOp s Eq l h
+    , neutral "/=" $ \s l h -> BinOp s Neq l h]
+  , [ left "*" $ \s l h -> BinOp s Mul l h
+    , left "/" $ \s l h -> BinOp s Div l h]
+  , [ left "+" $ \s l h -> BinOp s Add l h
+    , left "-" $ \s l h -> BinOp s Sub l h]
+  ]
+  where
+    left name f = InfixL (getSourcePos >>= \s -> pOperator name >> return (f s))
+    neutral name f = InfixN (getSourcePos >>= \s -> pOperator name >> return (f s))
+    -- right name f = InfixR (getSourcePos >>= \s -> pOperator name >> return (f s))
+    -- prefix name f = Prefix (getSourcePos >>= \s -> pOperator name >> return (f s))
+    -- postfix name f = Postfix (getSourcePos >>= \s -> pOperator name >> return (f s))
+
+pVarPat :: Parser (Pat Text)
+pVarPat = label "variable pattern" $
+  VarP <$> getSourcePos <*> lowerIdent
+
+pRecordPat :: Parser (Pat Text)
+pRecordPat = label "record pattern" $ do
   s <- getSourcePos
-  consumeKeyword "case"
-  e <- parseExp
-  consumeKeyword "of"
-  ps <- do
-    pos <- L.indentGuard scn GT (sourceColumn s)
-    p <- clause
-    ps <- many $ do
-      void $ L.indentGuard scn EQ pos
-      clause
-    pure (p:ps)
-  pure $ Case s e ps
- where
-  clause = do
-    pat <- parsePat
-    consumeOperator "=>"
-    val <- parseExp
-    return (pat, val)
+  void $ symbol "{"
+  xs <- sepBy field (symbol ",")
+  void $ symbol "}"
+  return $ RecordP s xs
+  where
+    field = (,) <$> lowerIdent <* pOperator "=" <*> pPattern
 
-parsePat :: Parser (Pat Text)
-parsePat = parseVarP <|> parseRecordP <|> parseVariantP
+pVariantPat :: Parser (Pat Text)
+pVariantPat = label "variant pattern" $
+  VariantP <$> getSourcePos
+    <* void (symbol "<") <*> lowerIdent <* pOperator "=" <*> pPattern <* void (symbol ">")
+    <* pKeyword "as" <*> pType
 
-parseVarP :: Parser (Pat Text)
-parseVarP = label "variable pattern" $ VarP <$> getSourcePos <*> lowerIdent
+pPattern :: Parser (Pat Text)
+pPattern = pVarPat
+           <|> pRecordPat
+           <|> pVariantPat
 
-parseRecordP :: Parser (Pat Text)
-parseRecordP = label "record pattern" $ RecordP <$> getSourcePos <*> parens
-  "{"
-  "}"
-  (parseFieldP `sepBy` L.symbol scn ",")
-
-parseVariantP :: Parser (Pat Text)
-parseVariantP = label "variant pattern" $ do
-  s          <- getSourcePos
-  (key, pat) <- parens "<" ">" parseFieldP <* try scn
-  consumeKeyword "as" <* try scn
-  VariantP s key pat <$> parseType
-
-parseFieldP :: Parser (Text, Pat Text)
-parseFieldP =
-  (,)
-    <$> lowerIdent
-    <*  try scn
-    <*  consumeOperator "="
-    <*  try scn
-    <*> parsePat
-    <*  try scn
-
-parseExp :: Parser (Exp Text)
-parseExp =
-  try parseBinOp
-    <|> try parseTerm
-    <|> parseLambda
-    <|> parseLet
-    <|> parseIf
-    <|> parseCase
-
-parseType :: Parser (Type Text)
-parseType =
-  try
-      (L.lineFold scn $ \sc' ->
-        TyArr
-          <$> getSourcePos
-          <*> parseSingleType
-          <*  try sc'
-          <*  consumeOperator "->"
-          <*  try sc'
-          <*> parseType
-      )
-    <|> try parseTyApp
-    <|> parseSingleType
-
-parseTyApp :: Parser (Type Text)
-parseTyApp = L.lineFold scn $ \sc' -> do
-  s   <- getSourcePos
-  con <- upperIdent
-  try sc'
-  TyApp s con <$> many (parseSingleType <* try sc')
-
-parseSingleType :: Parser (Type Text)
-parseSingleType =
-  try (parseTyPrim "Int" TInt)
-    <|> try (parseTyPrim "Char" TChar)
-    <|> try (parseTyPrim "String" TString)
-    <|> try (parseTyPrim "Bool" TBool)
-    <|> parseTyApp
-    <|> TyVar
-    <$> getSourcePos
-    <*> lowerIdent
-    <|> parseTyRecord
-    <|> parseTyVariant
-    <|> parens "(" ")" parseType
- where
-  parseTyPrim name tag =
-    TyPrim <$> getSourcePos <* consumeKeyword name <*> pure tag
-  parseTyRecord = TyRecord <$> getSourcePos <*> parens
-    "{"
-    "}"
-    (field `sepBy` L.symbol scn ",")
-  parseTyVariant = TyVariant <$> getSourcePos <*> parens
-    "<"
-    ">"
-    (field `sepBy` L.symbol scn "|")
-  field =
-    (,)
-      <$> lowerIdent
-      <*  try scn
-      <*  consumeOperator ":"
-      <*  try scn
-      <*> parseType
-
-parseDecs :: Parser [Dec Text]
-parseDecs = many parseDec
-
-parseDec :: Parser (Dec Text)
-parseDec =
-  L.nonIndented scn $ try parseScSig <|> parseScDef <|> parseTypeAliasDef
-
-parseScSig :: Parser (Dec Text)
-parseScSig = label "function signature" $ L.lineFold scn $ \sc' -> do
+pCase :: Parser (Exp Text)
+pCase = label "case expression" $ do
   s <- getSourcePos
-  f <- lowerIdent <* try sc'
-  consumeOperator ":" <* try sc'
-  ScSig s f <$> parseType
+  pKeyword "case"
+  e <- pExp
+  pKeyword "of"
+  ps <- many clause
+  return $ Case s e ps
+  where
+    clause = do
+      pOperator "|"
+      pat <- pPattern
+      pOperator "=>"
+      e <- pExp
+      return (pat, e)
 
-parseScDef :: Parser (Dec Text)
-parseScDef = label "function definition" $ do
-  s     <- getSourcePos
-  f     <- lowerIdent
-  xs    <- many lowerIdent
-  consumeOperator "="
-  void $ L.indentGuard scn GT pos1
-  ScDef s f xs <$> parseExp
+pAscribe :: Parser (Exp Text)
+pAscribe = Ascribe <$> getSourcePos <*> pTerm <* pKeyword "as" <*> pType
 
-parseTypeAliasDef :: Parser (Dec Text)
-parseTypeAliasDef = label "type alias definition" $ L.lineFold scn $ \sc' -> do
-  s <- getSourcePos
-  consumeKeyword "type"
-  con <- upperIdent
-  xs  <- many lowerIdent
-  try sc'
-  consumeOperator "=" <* try sc'
-  TypeAliasDef s con xs <$> parseType
+pIf :: Parser (Exp Text)
+pIf = label "if expression" $
+  If <$> getSourcePos
+    <* pKeyword "if" <*> pExp
+    <* pKeyword "then" <*> pExp
+    <* pKeyword "else" <*> pExp
+
+pExp :: Parser (Exp Text)
+pExp = try pAscribe
+       <|> try pBinOp
+       <|> pTerm
+       <|> pLambda
+       <|> pLetRec
+       <|> pCase
+       <|> pIf
+       <|> do { s <- getSourcePos
+              ; pOperator "-"
+              ; BinOp s Sub (Int s 0) <$> pSingleExp }
+       <|> do { pOperator "+"
+              ; pSingleExp }
+       <|> pSingleExp
+
+pDecs :: Parser [Dec Text]
+pDecs = many (pDec <* symbol ";")
+
+pDec :: Parser (Dec Text)
+pDec = try pScSig
+       <|> pScDef
+       <|> pTypeAliasDef
+
+pScSig :: Parser (Dec Text)
+pScSig = label "toplevel function signature" $
+  ScSig <$> getSourcePos <*> lowerIdent <* symbol ":" <*> pType
+
+pScDef :: Parser (Dec Text)
+pScDef = label "toplevel function definition" $
+  ScDef <$> getSourcePos <*> lowerIdent <*> many lowerIdent <* pOperator "=" <*> pExp
+
+pTypeAliasDef :: Parser (Dec Text)
+pTypeAliasDef = label "type alias definition" $
+  TypeAliasDef <$> getSourcePos <* pKeyword "type" <*> upperIdent <*> many lowerIdent <* pOperator "=" <*> pType
+
+pType :: Parser (Type Text)
+pType = try pTyArr
+        <|> try pTyApp
+        <|> pSingleType
+
+pTyArr :: Parser (Type Text)
+pTyArr =
+  TyArr <$> getSourcePos <*> pSingleType <* pOperator "->" <*> pType
+
+pTyApp :: Parser (Type Text)
+pTyApp =
+  TyApp <$> getSourcePos <*> upperIdent <*> many pSingleType
+
+pSingleType :: Parser (Type Text)
+pSingleType =
+  try (TyPrim <$> getSourcePos <* pKeyword "Int" <*> pure TInt)
+  <|> try (TyPrim <$> getSourcePos <* pKeyword "Char" <*> pure TChar)
+  <|> try (TyPrim <$> getSourcePos <* pKeyword "String" <*> pure TString)
+  <|> try (TyPrim <$> getSourcePos <* pKeyword "Bool" <*> pure TBool)
+  <|> pTyApp
+  <|> TyVar <$> getSourcePos <*> lowerIdent
+  <|> pTyRecord
+  <|> pTyVariant
+  <|> between (symbol "(") (symbol ")") pType
+  where
+    pTyRecord = TyRecord <$> getSourcePos <*> between (symbol "{") (symbol "}") (field `sepBy` symbol ",")
+    pTyVariant = TyVariant <$> getSourcePos <*> between (symbol "<") (symbol ">") (field `sepBy` symbol "|")
+    field = (,) <$> lowerIdent <* pOperator ":" <*> pType
