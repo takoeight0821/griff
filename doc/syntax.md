@@ -30,8 +30,7 @@ exp : term 'as' type
     | binop
     | term
     | 'fn' lower lower* '->' exp
-    | 'let' lower lower* '=' exp 'in' exp
-    | 'let' 'rec' lower lower* '=' exp ('and' lower lower* '=' exp)* 'in' exp
+    | 'let' lower lower* '=' exp ('and' lower lower* '=' exp)* 'in' exp
     | 'case' exp 'of' ('|' pat '=>' exp)*
     | 'if' exp 'then' exp 'else' exp
     | '-' single_exp
