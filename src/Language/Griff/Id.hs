@@ -5,7 +5,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 module Language.Griff.Id where
 
-import           Control.Effect
+import           Control.Effect.Fresh
 import           Data.Data
 import           Data.String
 import           Data.Text              (pack, unpack)
@@ -22,5 +22,5 @@ instance PrettyVal Id
 stringify :: IsString a => Id -> a
 stringify (Id text) = fromString $ unpack text
 
-newId :: (Carrier sig f, Member Fresh sig) => Text -> f Id
+newId :: (Has Fresh sig f) => Text -> f Id
 newId name = Id . (name <>) . pack . show <$> newUniq

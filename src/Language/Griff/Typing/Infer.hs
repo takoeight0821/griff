@@ -32,12 +32,12 @@ convertType (TyVariant _ xs) = TVariant $ Map.fromList $ map (second convertType
 loadTypeAlias :: (a, Id, [Id], Type Id) -> ConMap
 loadTypeAlias (_, con, args, ty) = ConMap $ Map.singleton con (args, convertType ty)
 
-loadScSig :: (Carrier sig m, InferEff sig) => (a, Id, Type Id) -> m Constraint
+loadScSig :: InferEff sig m => (a, Id, Type Id) -> m Constraint
 loadScSig (_, x, t) = do
   tv <- lookup x
   pure (tv, convertType t)
 
-infer :: (Carrier sig m, InferEff sig, MonadFail m) => [Dec Id] -> m ()
+infer :: (InferEff sig m, MonadFail m) => [Dec Id] -> m ()
 infer ds = do
   let scSigs = mapMaybe (preview _ScSig) ds
   let scDefs = mapMaybe (preview _ScDef) ds
@@ -58,13 +58,13 @@ infer ds = do
   where
     prepare = mapM_ (\x -> newMeta >>= \tv -> addScheme (x, Forall [] tv))
 
-inferDef :: (Carrier sig m, InferEff sig, MonadFail m) => (SourcePos, Id, [Id], Exp Id) -> m (Ty, [Constraint])
+inferDef :: (InferEff sig m, MonadFail m) => (SourcePos, Id, [Id], Exp Id) -> m (Ty, [Constraint])
 inferDef (s, f, xs, e) = do
   (t0, cs) <- inferExp $ foldr (Lambda s) e xs
   t1 <- lookup f
   return (t0, (t0, t1) : cs)
 
-inferExp :: (Carrier sig m, InferEff sig, MonadFail m) => Exp Id -> m (Ty, [Constraint])
+inferExp :: (InferEff sig m, MonadFail m) => Exp Id -> m (Ty, [Constraint])
 inferExp (Var _ a) = do
   t <- lookup a
   pure (t, [])
@@ -135,13 +135,13 @@ inferExp (Case _ e clauses) = do
   let cs1 = map (t,) ts
   pure (t, cs1 <> cs0 <> ecs)
 
-inferClause :: (Carrier sig m, InferEff sig, MonadFail m) => Ty -> (Pat Id, Exp Id) -> m (Ty, [Constraint])
+inferClause :: (InferEff sig m, MonadFail m) => Ty -> (Pat Id, Exp Id) -> m (Ty, [Constraint])
 inferClause t0 (pat, e) = do
   cs0 <- inferPat t0 pat
   (eTy, cs1) <- inferExp e
   pure (eTy, cs1 <> cs0)
 
-inferPat :: (Carrier sig m, InferEff sig, MonadFail m) => Ty -> Pat Id -> m [Constraint]
+inferPat :: (InferEff sig m, MonadFail m) => Ty -> Pat Id -> m [Constraint]
 inferPat t0 (VarP _ x) = do
   tv <- newMeta
   addScheme (x, Forall [] tv)
@@ -157,7 +157,7 @@ inferPat t0 (VariantP _ label x ty) = do
   cs <- inferPat valType x
   pure $ (t0, convertType ty) : cs
 
-ops :: (Carrier sig f, InferEff sig) => Op -> f Ty
+ops :: InferEff sig f => Op -> f Ty
 ops Add = pure (TPrim TInt `TArr` (TPrim TInt `TArr` TPrim TInt))
 ops Sub = pure (TPrim TInt `TArr` (TPrim TInt `TArr` TPrim TInt))
 ops Mul = pure (TPrim TInt `TArr` (TPrim TInt `TArr` TPrim TInt))
@@ -176,7 +176,7 @@ ops Ge = pure (TPrim TInt `TArr` (TPrim TInt `TArr` TPrim TBool))
 ops And = pure (TPrim TBool `TArr` (TPrim TBool `TArr` TPrim TBool))
 ops Or = pure (TPrim TBool `TArr` (TPrim TBool `TArr` TPrim TBool))
 
-letVar :: (Carrier sig m, InferEff sig) => Env -> Id -> Ty -> [Constraint] -> m ()
+letVar :: InferEff sig m => Env -> Id -> Ty -> [Constraint] -> m ()
 letVar env var ty cs = do
   sub <- runSolve cs
   let sc = generalize (apply sub env) (apply sub ty)

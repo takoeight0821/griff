@@ -4,7 +4,6 @@
 {-# LANGUAGE TupleSections     #-}
 module Language.Griff.KNormal (convert) where
 
-import           Control.Effect
 import           Control.Monad.Fail
 import           Data.Bifunctor
 import           Language.Griff.Core
@@ -12,14 +11,14 @@ import           Language.Griff.Id
 import           Language.Griff.Prelude
 import           Language.Griff.Typing.Monad
 
-convert :: (Carrier sig m, InferEff sig, MonadFail m) => Toplevel -> m Toplevel
+convert :: (InferEff sig m, MonadFail m) => Toplevel -> m Toplevel
 convert toplevel = do
   scDefs' <- mapM (secondM (fmap flatten . conv)) scdefs
   pure $ toplevel { _scDef = scDefs' }
   where
     scdefs = _scDef toplevel
 
-insertLet :: (Carrier sig m, InferEff sig, MonadFail m) => Exp -> (Exp -> m Exp) -> m Exp
+insertLet :: (InferEff sig m, MonadFail m) => Exp -> (Exp -> m Exp) -> m Exp
 insertLet (Var x) k = k (Var x)
 insertLet (Int x) k = k (Int x)
 insertLet (Char x) k = k (Char x)
@@ -30,7 +29,7 @@ insertLet x k = do
   addScheme =<< (x',) <$> schemeOf x
   Let x' <$> conv x <*> k (Var x')
 
-conv :: (Carrier sig m, InferEff sig, MonadFail m) => Exp -> m Exp
+conv :: (InferEff sig m, MonadFail m) => Exp -> m Exp
 conv (Record r) = go r []
   where go [] ys          = pure $ Record ys
         go ((l, x):xs) ys = insertLet x $ \x' -> go xs ((l, x'):ys)
@@ -56,7 +55,7 @@ flatten (LetRec ds e) = LetRec (map (second flatten) ds) e
 flatten (Case e cs) = Case (flatten e) (map (second flatten) cs)
 flatten e = e
 
-crushPat :: (Carrier sig m, InferEff sig, MonadFail m) => Pat -> Exp -> m (Pat, Exp)
+crushPat :: (InferEff sig m, MonadFail m) => Pat -> Exp -> m (Pat, Exp)
 crushPat (RecordP xs) e = crushRecordP xs [] e
 crushPat p@(VariantP _ (VarP _) _) e = pure (p, e)
 crushPat p@(VariantP _ (BoolP _) _) e = pure (p, e)
@@ -67,7 +66,7 @@ crushPat (VariantP label p t) e = do
   pure (VariantP label (VarP x) t, Case (Var x) [clause])
 crushPat p e            = pure (p, e)
 
-crushRecordP :: (Carrier sig m, InferEff sig, MonadFail m) => [(Text, Pat)] -> [(Text, Pat)] -> Exp -> m (Pat, Exp)
+crushRecordP :: (InferEff sig m, MonadFail m) => [(Text, Pat)] -> [(Text, Pat)] -> Exp -> m (Pat, Exp)
 crushRecordP [] accs e = pure (RecordP accs, e)
 crushRecordP ((label, VarP x):ps) accs e = crushRecordP ps ((label, VarP x):accs) e
 crushRecordP ((label, BoolP x):ps) accs e = crushRecordP ps ((label, BoolP x):accs) e

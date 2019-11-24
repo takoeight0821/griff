@@ -1,4 +1,6 @@
 packages:
 - .
 extra-deps:
-resolver: lts-14.11
+- fused-effects-1.0.0.0
+resolver: lts-14.15
+

@@ -3,7 +3,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 module Language.Griff.Core (Exp(..), Op(..), Pat(..), ScDef, Toplevel(..), schemeOf, schemeOfPat) where
 
-import           Control.Effect
 import           Control.Effect.State
 import           Control.Monad
 import           Control.Monad.Fail
@@ -49,7 +48,7 @@ newtype Toplevel = Toplevel
 
 instance PrettyVal Toplevel
 
-schemeOf :: (Carrier sig m, InferEff sig, MonadFail m) => Exp -> m Scheme
+schemeOf :: (InferEff sig m, MonadFail m) => Exp -> m Scheme
 schemeOf (Var x) = generalize <$> get <*> lookup x
 schemeOf Int{} = pure $ Forall [] (TPrim TInt)
 schemeOf Char{} = pure $ Forall [] (TPrim TChar)
@@ -85,7 +84,7 @@ schemeOf (BinOp p _) = case p of
   And -> pure $ Forall [] (TPrim TBool)
   Or  -> pure $ Forall [] (TPrim TBool)
 
-schemeOfPat :: (Carrier sig f, InferEff sig) => Pat -> f Scheme
+schemeOfPat :: (InferEff sig f) => Pat -> f Scheme
 schemeOfPat (VarP x) = generalize <$> get <*> lookup x
 schemeOfPat (BoolP _) = pure $ Forall [] (TPrim TBool)
 schemeOfPat (RecordP xs) = do

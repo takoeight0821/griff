@@ -3,14 +3,14 @@
 {-# LANGUAGE TypeApplications  #-}
 module Language.Griff.Driver (compileFromPath) where
 
-import           Control.Effect
-import           Control.Effect.Error
+import           Control.Carrier.Error.Either
+import           Control.Carrier.Lift
 import           Control.Effect.State
 import           Control.Monad.Fail
 import           Control.Monad.IO.Class
-import qualified Data.Text.IO                as T
-import qualified Language.Griff.Desugar      as Desugar
-import qualified Language.Griff.KNormal      as KNormal
+import qualified Data.Text.IO                 as T
+import qualified Language.Griff.Desugar       as Desugar
+import qualified Language.Griff.KNormal       as KNormal
 import           Language.Griff.NewParser
 import           Language.Griff.Prelude
 import           Language.Griff.Rename
@@ -18,7 +18,7 @@ import           Language.Griff.Syntax
 import           Language.Griff.Typing.Infer
 import           Language.Griff.Typing.Monad
 import           Language.Griff.Uniq
-import           Text.Megaparsec             (errorBundlePretty)
+import           Text.Megaparsec              (errorBundlePretty)
 import           Text.Show.Pretty
 
 compileFromPath :: (MonadFail m, MonadIO m) => FilePath -> m ()
@@ -43,7 +43,7 @@ compileFromPath path = runM $ do
     Right () -> pure ()
     Left err -> error err
 
-parseSource :: (Member (Error String) sig, Carrier sig f) => Text -> f [Dec Text]
+parseSource :: Has (Error String) sig f => Text -> f [Dec Text]
 parseSource src = do
   let ast = parse "<stdin>" src
   case ast of

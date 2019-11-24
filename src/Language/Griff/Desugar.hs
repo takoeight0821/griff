@@ -5,9 +5,8 @@
 {-# LANGUAGE TypeApplications  #-}
 module Language.Griff.Desugar where
 
-import           Control.Effect
+import           Control.Carrier.Reader
 import           Control.Effect.Error
-import           Control.Effect.Reader
 import           Control.Effect.State
 import           Control.Lens
 import           Data.Bifunctor
@@ -21,7 +20,7 @@ import           Language.Griff.TypeRep
 import           Language.Griff.Typing.Infer (convertType)
 import           Language.Griff.Typing.Monad
 
-desugar :: (Carrier sig m, InferEff sig) => [S.Dec Id] -> m Toplevel
+desugar :: InferEff sig m => [S.Dec Id] -> m Toplevel
 desugar ds = runReader (collectPureScDef scDefs) $ do
   ds' <- mapM dsScDef scDefs
   pure $ Toplevel { _scDef = ds'}
@@ -31,7 +30,7 @@ desugar ds = runReader (collectPureScDef scDefs) $ do
     collect (_, x, [], _) = Just x
     collect _             = Nothing
 
-dsScDef :: (Carrier sig m, InferEff sig, Member (Reader [Id]) sig) => (a, Id, [Id], S.Exp Id) -> m (Id, NonEmpty Id, Exp)
+dsScDef :: (InferEff sig m, Has (Reader [Id]) sig m) => (a, Id, [Id], S.Exp Id) -> m (Id, NonEmpty Id, Exp)
 dsScDef (_, f, [], e)   = do
   env <- get
   case Map.lookup f env of
@@ -42,7 +41,7 @@ dsScDef (_, f, [], e)   = do
       (f, x :| [],) <$> dsExp e
 dsScDef (_, f, p:ps, e) = (f, p :| ps,) <$> dsExp e
 
-dsExp :: (Carrier sig m, InferEff sig, Member (Reader [Id]) sig) => S.Exp Id -> m Exp
+dsExp :: (InferEff sig m, Has (Reader [Id]) sig m) => S.Exp Id -> m Exp
 dsExp (S.Var _ x)    = do
   isPureScDef <- asks @[Id] (elem x)
   if isPureScDef

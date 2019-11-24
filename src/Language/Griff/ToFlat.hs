@@ -2,7 +2,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 module Language.Griff.ToFlat (convert) where
 
-import           Control.Effect
 import           Control.Effect.Fresh
 import           Control.Effect.State
 import           Control.Monad
@@ -23,7 +22,7 @@ data ToFlatEnv = ToFlatEnv
 
 -- すでにレコードのキーのリストが登録済みなら、それをもとに値をソートする
 -- 未登録なら、登録して値をソートする
-sortRecord :: (Carrier sig m, Member (State ToFlatEnv) sig) => [(Text, C.Exp)] -> m [C.Exp]
+sortRecord :: (Has (State ToFlatEnv) sig m) => [(Text, C.Exp)] -> m [C.Exp]
 sortRecord r = do
   set <- gets record
   when (keys `notElem` set) $
@@ -35,7 +34,7 @@ sortRecord r = do
 
 -- タグが登録済みならそれを返す
 -- そうでなければ新しいタグを生成して返す
-variantTag :: (Carrier sig m, Member Fresh sig, Member (State ToFlatEnv) sig) => Text -> m Int
+variantTag :: (Has Fresh sig m, Has (State ToFlatEnv) sig m) => Text -> m Int
 variantTag tag = do
   tagMap <- gets variant
   case Map.lookup tag tagMap of
@@ -45,5 +44,5 @@ variantTag tag = do
       pure i
     Just i -> pure i
 
-convert :: (Carrier sig m, InferEff sig) => Toplevel -> m [F.ScDef]
+convert :: InferEff sig m => Toplevel -> m [F.ScDef]
 convert (Toplevel scdefs) = undefined

@@ -3,11 +3,11 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 module Language.Griff.Uniq (newUniq, runUniq) where
 
-import           Control.Effect.Fresh
+import           Control.Carrier.Fresh.Strict
 import           Language.Griff.Prelude
 
-newUniq :: (Member Fresh sig, Carrier sig m) => m Int
+newUniq :: (Has Fresh sig m) => m Int
 newUniq = fresh
 
 runUniq :: Functor m => FreshC m a -> m a
-runUniq = runFresh
+runUniq = evalFresh 0
