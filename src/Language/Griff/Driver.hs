@@ -11,7 +11,6 @@ import           Control.Monad.IO.Class
 import qualified Data.Text.IO                as T
 import qualified Language.Griff.Desugar      as Desugar
 import qualified Language.Griff.KNormal      as KNormal
--- import           Language.Griff.Parser
 import           Language.Griff.NewParser
 import           Language.Griff.Prelude
 import           Language.Griff.Rename
