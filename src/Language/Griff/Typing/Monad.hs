@@ -64,7 +64,7 @@ lookup x = do
     Nothing -> throwError $ UnboundVariable x
     Just s  -> instantiate s
 
-newMeta :: (Carrier sig m, InferEff sig) => m Ty
+newMeta :: (Carrier sig m, Member Fresh sig) => m Ty
 newMeta = do
   i <- newId "meta"
   return $ TVar i
@@ -74,7 +74,7 @@ addScheme (x, sc) = do
   let scope e = Map.insert x sc $ Map.delete x e
   modify scope
 
-instantiate :: (Carrier sig m, InferEff sig) => Scheme -> m Ty
+instantiate :: (Carrier sig m, Member Fresh sig) => Scheme -> m Ty
 instantiate (Forall as t) = do
   as' <- mapM (const newMeta) as
   let s = Subst $ Map.fromList $ zip as as'
