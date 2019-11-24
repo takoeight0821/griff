@@ -28,3 +28,9 @@ data Scheme = Forall [Id] Ty
   deriving (Eq, Ord, Show, Generic, Data)
 
 instance PrettyVal Scheme
+
+class HasType t where
+  typeOf :: t -> Scheme
+
+instance HasType Scheme where
+  typeOf x = x
