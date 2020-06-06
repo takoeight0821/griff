@@ -4,7 +4,7 @@ github:              "takoeight0821/griff"
 license:             BSD3
 author:              "Yuya Kono"
 maintainer:          "takohati0821@gmail.com"
-copyright:           "2019 Yuya Kono"
+copyright:           "2020 Yuya Kono"
 
 extra-source-files:
 - README.md
@@ -21,25 +21,6 @@ description:         Please see the README on GitHub at <https://github.com/tako
 
 dependencies:
 - base >= 4.7 && < 5
-- bytestring
-- containers
-- extra
-- fixed-vector
-- fused-effects
-- generic-lens
-- lens
-- llvm-hs-pure
-- megaparsec
-- mtl
-- pretty-show
-- parser-combinators
-- prettyprinter
-- text
-
-ghc-options:
-- -Wall
-- -fwarn-tabs
-- -fwarn-incomplete-record-updates
 
 library:
   source-dirs: src
@@ -65,5 +46,3 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - griff
-    - hspec
-    - hspec-discover
