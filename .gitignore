@@ -26,3 +26,4 @@ Vagrantfile
 .DS_store
 stack.yaml.lock
 *.cabal
+.hie/
