@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -42,6 +44,7 @@ module Language.Griff.Prelude
     (<<$>>),
     ordNub,
     replaceOf,
+    Undefined (..),
   )
 where
 
@@ -54,23 +57,15 @@ import Control.Monad.Reader.Class
 import Control.Monad.State.Class
 import Control.Monad.Trans
 import Control.Monad.Trans.Except (ExceptT (..))
-import Control.Monad.Trans.Reader
-  ( ReaderT (..),
-    runReader,
-    runReaderT,
-  )
-import Control.Monad.Trans.State.Strict
-  ( StateT (..),
-    evalStateT,
-    execStateT,
-    runStateT,
-  )
+import Control.Monad.Trans.Reader (ReaderT (..), runReader, runReaderT)
+import Control.Monad.Trans.State.Strict (StateT (..), evalStateT, execStateT, runStateT)
 import Control.Monad.Trans.Writer.CPS (WriterT, runWriterT)
 import qualified Control.Monad.Trans.Writer.CPS as W
 import Control.Monad.Writer.Class
 import Data.Bifunctor
 import Data.Bitraversable
 import Data.Coerce
+import Data.Data (Data, Typeable)
 import Data.Foldable
 import Data.List.NonEmpty (NonEmpty (..))
 import Data.Map (Map)
@@ -80,12 +75,8 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.String (IsString (..))
 import Data.Text (Text)
-import GHC.Stack
-  ( CallStack,
-    HasCallStack,
-    callStack,
-    prettyCallStack,
-  )
+import GHC.Generics (Generic)
+import GHC.Stack (CallStack, HasCallStack, callStack, prettyCallStack)
 import Text.Megaparsec.Pos (SourcePos, sourcePosPretty)
 import Text.PrettyPrint.HughesPJClass (Pretty (..), text)
 import Prelude hiding (log, unzip)
@@ -160,3 +151,8 @@ instance (Monoid w, MonadState s m) => MonadState s (WriterT w m) where
 -- Pretty SourcePos
 instance Pretty SourcePos where
   pPrint = text . sourcePosPretty
+
+-- | Similar to 'undefined' but data type.
+data Undefined = Undefined
+  deriving stock (Eq, Ord, Show, Read, Enum, Bounded, Data, Typeable, Generic)
+{-# WARNING Undefined "'Undefined' type remains in code" #-}
