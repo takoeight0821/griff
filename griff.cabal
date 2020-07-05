@@ -1,0 +1,94 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.33.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: deb15d1b84282e8433287946295d36dce6a101f316594639610077528959ef19
+
+name:           griff
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/takoeight0821/griff#readme>
+homepage:       https://github.com/takoeight0821/griff#readme
+bug-reports:    https://github.com/takoeight0821/griff/issues
+author:         Yuya Kono
+maintainer:     takohati0821@gmail.com
+copyright:      2020 Yuya Kono
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    ChangeLog.md
+
+source-repository head
+  type: git
+  location: https://github.com/takoeight0821/griff
+
+library
+  exposed-modules:
+      Language.Griff.Id
+      Language.Griff.MonadUniq
+      Language.Griff.Prelude
+      Language.Griff.Pretty
+      Lib
+  other-modules:
+      Paths_griff
+  hs-source-dirs:
+      src
+  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wno-name-shadowing -j4 +RTS -A128m -n2m -qg -RTS -fwrite-ide-info -hiedir=.hie
+  build-depends:
+      base >=4.7 && <5
+    , containers
+    , lens
+    , llvm-hs-pure
+    , megaparsec
+    , mtl
+    , pretty
+    , pretty-simple
+    , text
+    , transformers
+  default-language: Haskell2010
+
+executable griff-exe
+  main-is: Main.hs
+  other-modules:
+      Paths_griff
+  hs-source-dirs:
+      app
+  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wno-name-shadowing -j4 +RTS -A128m -n2m -qg -RTS -fwrite-ide-info -hiedir=.hie -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , containers
+    , griff
+    , lens
+    , llvm-hs-pure
+    , megaparsec
+    , mtl
+    , pretty
+    , pretty-simple
+    , text
+    , transformers
+  default-language: Haskell2010
+
+test-suite griff-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_griff
+  hs-source-dirs:
+      test
+  ghc-options: -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wno-name-shadowing -j4 +RTS -A128m -n2m -qg -RTS -fwrite-ide-info -hiedir=.hie -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , containers
+    , griff
+    , lens
+    , llvm-hs-pure
+    , megaparsec
+    , mtl
+    , pretty
+    , pretty-simple
+    , text
+    , transformers
+  default-language: Haskell2010
