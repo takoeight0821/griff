@@ -1,0 +1,8 @@
+cradle:
+  stack:
+    - path: "./app/Main.hs"
+      component: "griff:exe:griff"
+    - path: "./src"
+      component: "griff:lib"
+    - path: "./test"
+      component: "griff-test"
