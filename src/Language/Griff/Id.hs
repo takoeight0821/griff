@@ -17,24 +17,31 @@ module Language.Griff.Id
     idMeta,
     newId,
     IdMap (..),
+    Name (..),
   )
 where
 
 import Data.Functor.Classes
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
+import Data.Text (unpack)
 import GHC.Exts (IsList (..))
 import Language.Griff.MonadUniq
 import Language.Griff.Prelude hiding (toList)
 import Language.Griff.Pretty
 import Text.PrettyPrint.HughesPJClass (text)
 
-data Id a
-  = Id
-      { _idName :: String,
-        _idUniq :: Int,
-        _idMeta :: a
-      }
+newtype Name = Name Text
+  deriving newtype (Show, Eq, Ord, IsString)
+
+instance Pretty Name where
+  pPrint (Name t) = text $ unpack t
+
+data Id a = Id
+  { _idName :: Name,
+    _idUniq :: Int,
+    _idMeta :: a
+  }
   deriving stock (Show, Functor, Foldable)
 
 instance Eq (Id a) where
@@ -44,9 +51,9 @@ instance Ord (Id a) where
   compare Id {_idUniq = x} Id {_idUniq = y} = compare x y
 
 instance Pretty a => Pretty (Id a) where
-  pPrint (Id n u m) = text n <> "." <> text (show u) <> ":" <> pPrint m
+  pPrint (Id n u m) = pPrint n <> "." <> text (show u) <> ":" <> pPrint m
 
-idName :: Getter (Id a) String
+idName :: Getter (Id a) Name
 idName = lens _idName (\i x -> i {_idName = x})
 
 idUniq :: Getter (Id a) Int
@@ -55,7 +62,7 @@ idUniq = lens _idUniq (\i x -> i {_idUniq = x})
 idMeta :: Lens (Id a) (Id b) a b
 idMeta = lens _idMeta (\i x -> i {_idMeta = x})
 
-newId :: MonadUniq f => a -> String -> f (Id a)
+newId :: MonadUniq f => a -> Name -> f (Id a)
 newId m n = Id n <$> getUniq <*> pure m
 
 newtype IdMap a v = IdMap {unwrapIdMap :: IntMap v}
