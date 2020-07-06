@@ -116,12 +116,6 @@ type ForallPatX (c :: Type -> Constraint) x = (c (XVarP x), c (XConP x), c (XId 
 -- Phase and type instance
 data Griff (p :: GriffPhase)
 
--- data NoExt = NoExt
---   deriving stock (Eq, Show)
-
--- instance Pretty NoExt where
---   pPrint NoExt = "_"
-
 type instance XVar (Griff _) = SourcePos
 
 type instance XId (Griff p) = GriffId p
