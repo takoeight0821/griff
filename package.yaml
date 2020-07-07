@@ -19,6 +19,7 @@ dependencies:
 - lens
 - mtl
 - megaparsec
+- parser-combinators
 - pretty
 - pretty-simple
 - text

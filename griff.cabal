@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: b3b5f89b6df7c65660f9449aa4427f7710279a129e706d0c35cd4c4bf860f169
+-- hash: d3396465cc9467cf4dd537418ca4a37550d4153c327597411e10690288a55af6
 
 name:           griff
 version:        0.1.0.0
@@ -45,6 +45,7 @@ library
     , llvm-hs-pure
     , megaparsec
     , mtl
+    , parser-combinators
     , pretty
     , pretty-simple
     , text
@@ -66,6 +67,7 @@ executable griff-exe
     , llvm-hs-pure
     , megaparsec
     , mtl
+    , parser-combinators
     , pretty
     , pretty-simple
     , text
@@ -88,6 +90,7 @@ test-suite griff-test
     , llvm-hs-pure
     , megaparsec
     , mtl
+    , parser-combinators
     , pretty
     , pretty-simple
     , text

@@ -40,7 +40,8 @@ instance Pretty Unboxed where
 -- Expression
 
 data Exp x
-  = Var (XVar x) (XId x) -- variable and constructor
+  = Var (XVar x) (XId x) -- variable
+  | Con (XCon x) (XId x) -- constructor
   | Unboxed (XUnboxed x) Unboxed
   | Apply (XApply x) (Exp x) (Exp x)
   | OpApp (XOpApp x) (Exp x) (Exp x) (Exp x)
@@ -52,10 +53,16 @@ deriving stock instance (ForallExpX Show x, ForallClauseX Show x, ForallPatX Sho
 
 instance (Pretty (XId x)) => Pretty (Exp x) where
   pPrintPrec _ _ (Var _ i) = pPrint i
+  pPrintPrec _ _ (Con _ c) = pPrint c
   pPrintPrec _ _ (Unboxed _ u) = pPrint u
   pPrintPrec l d (Apply _ e1 e2) = P.maybeParens (d > 10) $ P.sep [pPrintPrec l 10 e1, pPrintPrec l 11 e2]
-  pPrintPrec l d (OpApp _ o e1 e2) = P.maybeParens (d > 10) $ P.sep [pPrintPrec l 10 o, pPrintPrec l 11 e1, pPrintPrec l 11 e2]
-  pPrintPrec l _ (Fn _ cs) = P.braces $ foldl1 (\a b -> P.sep [a, "|" <+> b]) $ map (pPrintPrec l 0) cs
+  pPrintPrec l d (OpApp _ o e1 e2) =
+    P.maybeParens (d > 10) $
+      P.sep [pPrintPrec l 11 e1, pPrintPrec l 10 o, pPrintPrec l 11 e2]
+  pPrintPrec l _ (Fn _ cs) =
+    P.braces
+      $ foldl1 (\a b -> P.sep [a, "|" <+> b])
+      $ map (pPrintPrec l 0) cs
 
 -- Clause
 
@@ -80,12 +87,15 @@ deriving stock instance ForallPatX Show x => Show (Pat x)
 
 instance (Pretty (XId x)) => Pretty (Pat x) where
   pPrintPrec _ _ (VarP _ i) = pPrint i
+  pPrintPrec _ _ (ConP _ i []) = pPrint i
   pPrintPrec l d (ConP _ i ps) = P.maybeParens (d > 10) $ pPrint i <+> P.sep (map (pPrintPrec l 11) ps)
 
 -- Extension
 
 -- Exp Extensions
 type family XVar x
+
+type family XCon x
 
 type family XId x
 
@@ -97,7 +107,7 @@ type family XOpApp x
 
 type family XFn x
 
-type ForallExpX (c :: Type -> Constraint) x = (c (XVar x), c (XId x), c (XUnboxed x), c (XApply x), c (XOpApp x), c (XFn x))
+type ForallExpX (c :: Type -> Constraint) x = (c (XVar x), c (XCon x), c (XId x), c (XUnboxed x), c (XApply x), c (XOpApp x), c (XFn x))
 
 data GriffPhase = Parse | Rename | TypeCheck
 
@@ -117,6 +127,8 @@ type ForallPatX (c :: Type -> Constraint) x = (c (XVarP x), c (XConP x), c (XId 
 data Griff (p :: GriffPhase)
 
 type instance XVar (Griff _) = SourcePos
+
+type instance XCon (Griff _) = SourcePos
 
 type instance XId (Griff p) = GriffId p
 
