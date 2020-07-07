@@ -18,13 +18,14 @@ module Language.Griff.Id
     newId,
     IdMap (..),
     Name (..),
+    isConName,
   )
 where
 
 import Data.Functor.Classes
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-import Data.Text (unpack)
+import qualified Data.Text as T
 import GHC.Exts (IsList (..))
 import Language.Griff.MonadUniq
 import Language.Griff.Prelude hiding (toList)
@@ -35,7 +36,10 @@ newtype Name = Name Text
   deriving newtype (Show, Eq, Ord, IsString)
 
 instance Pretty Name where
-  pPrint (Name t) = text $ unpack t
+  pPrint (Name t) = text $ T.unpack t
+
+isConName :: Name -> Bool
+isConName (Name t) = if T.null t then False else T.head t `elem` ['A' .. 'Z']
 
 data Id a = Id
   { _idName :: Name,
