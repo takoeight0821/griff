@@ -17,7 +17,8 @@
 module Language.Griff.Syntax where
 
 import Data.Int (Int32, Int64)
-import Data.Kind (Constraint, Type)
+import Data.Kind (Constraint)
+import qualified Data.Kind as K
 import Language.Griff.Id
 import Language.Griff.Prelude
 import Language.Griff.Pretty
@@ -90,6 +91,50 @@ instance (Pretty (XId x)) => Pretty (Pat x) where
   pPrintPrec _ _ (ConP _ i []) = pPrint i
   pPrintPrec l d (ConP _ i ps) = P.maybeParens (d > 10) $ pPrint i <+> P.sep (map (pPrintPrec l 11) ps)
 
+-- Type
+
+data Type x
+  = TyApp (XTyApp x) (Type x) [Type x]
+  | TyVar (XTyVar x) (XId x)
+  | TyCon (XTyCon x) (XId x)
+  | TyArr (XTyArr x) (Type x) (Type x)
+
+deriving stock instance ForallTypeX Eq x => Eq (Type x)
+
+deriving stock instance ForallTypeX Show x => Show (Type x)
+
+instance (Pretty (XId x)) => Pretty (Type x) where
+  pPrintPrec l d (TyApp _ t ts) = P.maybeParens (d > 10) $ pPrint t <+> P.sep (map (pPrintPrec l 11) ts)
+  pPrintPrec _ _ (TyVar _ i) = pPrint i
+  pPrintPrec _ _ (TyCon _ i) = pPrint i
+  pPrintPrec l d (TyArr _ t1 t2) = P.maybeParens (d > 10) $ pPrintPrec l 11 t1 <+> "->" <+> pPrintPrec l 11 t2
+
+-- Declaration
+
+data Decl x
+  = ScDef (XScDef x) (XId x) [XId x] (Exp x)
+  | ScAnn (XScAnn x) (XId x) (Type x)
+  | DataDef (XDataDef x) (XId x) [XId x] [Type x]
+  | Infix (XInfix x) Assoc Int (XId x)
+
+deriving stock instance ForallDeclX Eq x => Eq (Decl x)
+
+deriving stock instance ForallDeclX Show x => Show (Decl x)
+
+instance (Pretty (XId x)) => Pretty (Decl x) where
+  pPrint (ScDef _ f xs e) = P.sep [pPrint f <+> P.sep (map pPrint xs) <+> "=", pPrint e]
+  pPrint (ScAnn _ f t) = pPrint f <+> "::" <+> pPrint t
+  pPrint (DataDef _ d xs ts) = P.sep ["data" <+> pPrint d <+> P.sep (map pPrint xs) <+> "=", foldl1 (\a b -> P.sep [a, "|" <+> b]) $ map pPrint ts]
+  pPrint (Infix _ a o x) = "infix" <> pPrint a <+> pPrint o <+> pPrint x
+
+data Assoc = LeftA | RightA | NeutralA
+  deriving stock (Eq, Show)
+
+instance Pretty Assoc where
+  pPrint LeftA = "l"
+  pPrint RightA = "r"
+  pPrint NeutralA = ""
+
 -- Extension
 
 -- Exp Extensions
@@ -107,34 +152,57 @@ type family XOpApp x
 
 type family XFn x
 
-type ForallExpX (c :: Type -> Constraint) x = (c (XVar x), c (XCon x), c (XId x), c (XUnboxed x), c (XApply x), c (XOpApp x), c (XFn x))
-
-data GriffPhase = Parse | Rename | TypeCheck
+type ForallExpX (c :: K.Type -> Constraint) x = (c (XVar x), c (XCon x), c (XId x), c (XUnboxed x), c (XApply x), c (XOpApp x), c (XFn x))
 
 -- Clause Extensions
 type family XClause x
 
-type ForallClauseX (c :: Type -> Constraint) x = c (XClause x)
+type ForallClauseX (c :: K.Type -> Constraint) x = c (XClause x)
 
 -- Pat Extensions
 type family XVarP x
 
 type family XConP x
 
-type ForallPatX (c :: Type -> Constraint) x = (c (XVarP x), c (XConP x), c (XId x))
+type ForallPatX (c :: K.Type -> Constraint) x = (c (XVarP x), c (XConP x), c (XId x))
+
+-- Type Extensions
+type family XTyApp x
+
+type family XTyVar x
+
+type family XTyCon x
+
+type family XTyArr x
+
+type ForallTypeX (c :: K.Type -> Constraint) x = (c (XTyApp x), c (XTyVar x), c (XTyCon x), c (XTyArr x), c (XId x))
+
+-- Decl Extensions
+
+type family XScDef x
+
+type family XScAnn x
+
+type family XDataDef x
+
+type family XInfix x
+
+type ForallDeclX (c :: K.Type -> Constraint) x = (c (XScDef x), c (XScAnn x), c (XDataDef x), c (XInfix x), ForallExpX c x, ForallClauseX c x, ForallPatX c x, ForallTypeX c x)
 
 -- Phase and type instance
+data GriffPhase = Parse | Rename | TypeCheck
+
 data Griff (p :: GriffPhase)
+
+type family GriffId (p :: GriffPhase) where
+  GriffId 'Parse = Name
+  GriffId 'Rename = Id ()
 
 type instance XVar (Griff _) = SourcePos
 
 type instance XCon (Griff _) = SourcePos
 
 type instance XId (Griff p) = GriffId p
-
-type family GriffId (p :: GriffPhase) where
-  GriffId 'Parse = Name
-  GriffId 'Rename = Id ()
 
 type instance XUnboxed (Griff _) = SourcePos
 
@@ -149,3 +217,19 @@ type instance XClause (Griff _) = SourcePos
 type instance XVarP (Griff _) = SourcePos
 
 type instance XConP (Griff _) = SourcePos
+
+type instance XTyApp (Griff _) = SourcePos
+
+type instance XTyVar (Griff _) = SourcePos
+
+type instance XTyCon (Griff _) = SourcePos
+
+type instance XTyArr (Griff _) = SourcePos
+
+type instance XScDef (Griff _) = SourcePos
+
+type instance XScAnn (Griff _) = SourcePos
+
+type instance XDataDef (Griff _) = SourcePos
+
+type instance XInfix (Griff _) = SourcePos
