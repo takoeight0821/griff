@@ -116,6 +116,7 @@ data Decl x
   | ScSig (XScSig x) (XId x) (Type x)
   | DataDef (XDataDef x) (XId x) [XId x] [(XId x, [Type x])]
   | Infix (XInfix x) Assoc Int (XId x)
+  | Forign (XForign x) (XId x) (Type x)
 
 deriving stock instance ForallDeclX Eq x => Eq (Decl x)
 
@@ -128,6 +129,7 @@ instance (Pretty (XId x)) => Pretty (Decl x) where
     where
       pprConDef (con, ts) = pPrint con <+> P.sep (map pPrint ts)
   pPrint (Infix _ a o x) = "infix" <> pPrint a <+> pPrint o <+> pPrint x
+  pPrint (Forign _ x t) = "forign import" <+> pPrint x <+> "::" <+> pPrint t
 
 data Assoc = LeftA | RightA | NeutralA
   deriving stock (Eq, Show)
@@ -189,7 +191,9 @@ type family XDataDef x
 
 type family XInfix x
 
-type ForallDeclX (c :: K.Type -> Constraint) x = (c (XScDef x), c (XScSig x), c (XDataDef x), c (XInfix x), ForallExpX c x, ForallClauseX c x, ForallPatX c x, ForallTypeX c x)
+type family XForign x
+
+type ForallDeclX (c :: K.Type -> Constraint) x = (c (XScDef x), c (XScSig x), c (XDataDef x), c (XInfix x), c (XForign x), ForallExpX c x, ForallClauseX c x, ForallPatX c x, ForallTypeX c x)
 
 -- Phase and type instance
 data GriffPhase = Parse | Rename | TypeCheck
