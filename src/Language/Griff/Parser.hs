@@ -40,7 +40,7 @@ pOperator :: Text -> Parser ()
 pOperator op = void $ lexeme (string op <* notFollowedBy opLetter)
 
 reserved :: Parser ()
-reserved = void $ choice $ map (try . pKeyword) ["data", "infixl", "infixr", "infix"]
+reserved = void $ choice $ map (try . pKeyword) ["data", "infixl", "infixr", "infix", "forign", "import"]
 
 reservedOp :: Parser ()
 reservedOp = void $ choice $ map (try . pOperator) ["=", "::", "|", "->", ";"]
@@ -142,7 +142,8 @@ pTyVar :: Parser (Type (Griff 'Parse))
 pTyVar = label "type variable" $ TyVar <$> getSourcePos <*> lowerIdent
 
 pTyCon :: Parser (Type (Griff 'Parse))
-pTyCon = label "type constructor" $ TyCon <$> getSourcePos <*> upperIdent
+pTyCon = label "type constructor" $
+  TyCon <$> getSourcePos <*> upperIdent
 
 pSingleType :: Parser (Type (Griff 'Parse))
 pSingleType = pTyVar <|> pTyCon <|> between (symbol "(") (symbol ")") pType
@@ -197,8 +198,18 @@ pInfix = label "infix declaration" $ do
   x <- operator
   pure $ Infix s a i x
 
+pForign :: Parser (Decl (Griff 'Parse))
+pForign = label "forign import" $ do
+  s <- getSourcePos
+  pKeyword "forign"
+  pKeyword "import"
+  x <- lowerIdent
+  pOperator "::"
+  t <- pType
+  pure $ Forign s x t
+   
 pDecl :: Parser (Decl (Griff 'Parse))
-pDecl = pDataDef <|> pInfix <|> try pScSig <|> pScDef
+pDecl = pDataDef <|> pInfix <|> pForign <|> try pScSig <|> pScDef
 
 pTopLevel :: Parser [Decl (Griff 'Parse)]
 pTopLevel = pDecl `sepBy` pOperator ";" <* eof

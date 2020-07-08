@@ -239,3 +239,7 @@ type instance XScSig (Griff _) = SourcePos
 type instance XDataDef (Griff _) = SourcePos
 
 type instance XInfix (Griff _) = SourcePos
+
+type instance XForign (Griff 'Parse) = SourcePos
+
+type instance XForign (Griff 'Rename) = (SourcePos, String)
