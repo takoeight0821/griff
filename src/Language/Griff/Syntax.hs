@@ -113,8 +113,8 @@ instance (Pretty (XId x)) => Pretty (Type x) where
 
 data Decl x
   = ScDef (XScDef x) (XId x) [XId x] (Exp x)
-  | ScAnn (XScAnn x) (XId x) (Type x)
-  | DataDef (XDataDef x) (XId x) [XId x] [Type x]
+  | ScSig (XScSig x) (XId x) (Type x)
+  | DataDef (XDataDef x) (XId x) [XId x] [(XId x, [Type x])]
   | Infix (XInfix x) Assoc Int (XId x)
 
 deriving stock instance ForallDeclX Eq x => Eq (Decl x)
@@ -122,9 +122,11 @@ deriving stock instance ForallDeclX Eq x => Eq (Decl x)
 deriving stock instance ForallDeclX Show x => Show (Decl x)
 
 instance (Pretty (XId x)) => Pretty (Decl x) where
-  pPrint (ScDef _ f xs e) = P.sep [pPrint f <+> P.sep (map pPrint xs) <+> "=", pPrint e]
-  pPrint (ScAnn _ f t) = pPrint f <+> "::" <+> pPrint t
-  pPrint (DataDef _ d xs ts) = P.sep ["data" <+> pPrint d <+> P.sep (map pPrint xs) <+> "=", foldl1 (\a b -> P.sep [a, "|" <+> b]) $ map pPrint ts]
+  pPrint (ScDef _ f xs e) = P.sep [pPrint f <+> P.sep (map pPrint xs) <+> "=", P.nest 2 $ pPrint e]
+  pPrint (ScSig _ f t) = pPrint f <+> "::" <+> pPrint t
+  pPrint (DataDef _ d xs cs) = P.sep ["data" <+> pPrint d <+> P.sep (map pPrint xs) <+> "=", foldl1 (\a b -> P.sep [a, "|" <+> b]) $ map pprConDef cs]
+    where
+      pprConDef (con, ts) = pPrint con <+> P.sep (map pPrint ts)
   pPrint (Infix _ a o x) = "infix" <> pPrint a <+> pPrint o <+> pPrint x
 
 data Assoc = LeftA | RightA | NeutralA
@@ -181,13 +183,13 @@ type ForallTypeX (c :: K.Type -> Constraint) x = (c (XTyApp x), c (XTyVar x), c 
 
 type family XScDef x
 
-type family XScAnn x
+type family XScSig x
 
 type family XDataDef x
 
 type family XInfix x
 
-type ForallDeclX (c :: K.Type -> Constraint) x = (c (XScDef x), c (XScAnn x), c (XDataDef x), c (XInfix x), ForallExpX c x, ForallClauseX c x, ForallPatX c x, ForallTypeX c x)
+type ForallDeclX (c :: K.Type -> Constraint) x = (c (XScDef x), c (XScSig x), c (XDataDef x), c (XInfix x), ForallExpX c x, ForallClauseX c x, ForallPatX c x, ForallTypeX c x)
 
 -- Phase and type instance
 data GriffPhase = Parse | Rename | TypeCheck
@@ -228,7 +230,7 @@ type instance XTyArr (Griff _) = SourcePos
 
 type instance XScDef (Griff _) = SourcePos
 
-type instance XScAnn (Griff _) = SourcePos
+type instance XScSig (Griff _) = SourcePos
 
 type instance XDataDef (Griff _) = SourcePos
 
