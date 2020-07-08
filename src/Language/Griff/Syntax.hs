@@ -47,6 +47,8 @@ data Exp x
   | Apply (XApply x) (Exp x) (Exp x)
   | OpApp (XOpApp x) (Exp x) (Exp x) (Exp x)
   | Fn (XFn x) [Clause x]
+  | Tuple (XTuple x) [Exp x]
+  | Force (XForce x) (Exp x)
 
 deriving stock instance (ForallExpX Eq x, ForallClauseX Eq x, ForallPatX Eq x) => Eq (Exp x)
 
@@ -64,6 +66,8 @@ instance (Pretty (XId x)) => Pretty (Exp x) where
     P.braces
       $ foldl1 (\a b -> P.sep [a, "|" <+> b])
       $ map (pPrintPrec l 0) cs
+  pPrintPrec _ _ (Tuple _ xs) = P.parens $ P.sep $ P.punctuate "," $ map pPrint xs
+  pPrintPrec l _ (Force _ x) = pPrintPrec l 11 x <> "!"
 
 -- Clause
 
@@ -98,6 +102,8 @@ data Type x
   | TyVar (XTyVar x) (XId x)
   | TyCon (XTyCon x) (XId x)
   | TyArr (XTyArr x) (Type x) (Type x)
+  | TyTuple (XTyTuple x) [Type x]
+  | TyLazy (XTyLazy x) (Type x)
 
 deriving stock instance ForallTypeX Eq x => Eq (Type x)
 
@@ -108,6 +114,8 @@ instance (Pretty (XId x)) => Pretty (Type x) where
   pPrintPrec _ _ (TyVar _ i) = pPrint i
   pPrintPrec _ _ (TyCon _ i) = pPrint i
   pPrintPrec l d (TyArr _ t1 t2) = P.maybeParens (d > 10) $ pPrintPrec l 11 t1 <+> "->" <+> pPrintPrec l 10 t2
+  pPrintPrec _ _ (TyTuple _ ts) = P.parens $ P.sep $ P.punctuate "," $ map pPrint ts
+  pPrintPrec _ _ (TyLazy _ t) = P.braces $ pPrint t
 
 -- Declaration
 
@@ -156,7 +164,11 @@ type family XOpApp x
 
 type family XFn x
 
-type ForallExpX (c :: K.Type -> Constraint) x = (c (XVar x), c (XCon x), c (XId x), c (XUnboxed x), c (XApply x), c (XOpApp x), c (XFn x))
+type family XTuple x
+
+type family XForce x
+
+type ForallExpX (c :: K.Type -> Constraint) x = (c (XVar x), c (XCon x), c (XId x), c (XUnboxed x), c (XApply x), c (XOpApp x), c (XFn x), c (XTuple x), c (XForce x))
 
 -- Clause Extensions
 type family XClause x
@@ -179,7 +191,11 @@ type family XTyCon x
 
 type family XTyArr x
 
-type ForallTypeX (c :: K.Type -> Constraint) x = (c (XTyApp x), c (XTyVar x), c (XTyCon x), c (XTyArr x), c (XId x))
+type family XTyTuple x
+
+type family XTyLazy x
+
+type ForallTypeX (c :: K.Type -> Constraint) x = (c (XTyApp x), c (XTyVar x), c (XTyCon x), c (XTyArr x), c (XTyTuple x), c (XTyLazy x), c (XId x))
 
 -- Decl Extensions
 
@@ -218,6 +234,10 @@ type instance XOpApp (Griff _) = SourcePos
 
 type instance XFn (Griff _) = SourcePos
 
+type instance XTuple (Griff _) = SourcePos
+
+type instance XForce (Griff _) = SourcePos
+
 type instance XClause (Griff _) = SourcePos
 
 type instance XVarP (Griff _) = SourcePos
@@ -231,6 +251,10 @@ type instance XTyVar (Griff _) = SourcePos
 type instance XTyCon (Griff _) = SourcePos
 
 type instance XTyArr (Griff _) = SourcePos
+
+type instance XTyTuple (Griff _) = SourcePos
+
+type instance XTyLazy (Griff _) = SourcePos
 
 type instance XScDef (Griff _) = SourcePos
 

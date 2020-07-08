@@ -31,7 +31,7 @@ identLetter :: Parser Char
 identLetter = alphaNumChar <|> oneOf ("_#" :: String)
 
 opLetter :: Parser Char
-opLetter = oneOf ("+-*/%=><:;|&" :: String)
+opLetter = oneOf ("+-*/%=><:;|&!" :: String)
 
 pKeyword :: Text -> Parser ()
 pKeyword keyword = void $ lexeme (string keyword <* notFollowedBy identLetter)
@@ -43,7 +43,7 @@ reserved :: Parser ()
 reserved = void $ choice $ map (try . pKeyword) ["data", "infixl", "infixr", "infix", "forign", "import"]
 
 reservedOp :: Parser ()
-reservedOp = void $ choice $ map (try . pOperator) ["=", "::", "|", "->", ";"]
+reservedOp = void $ choice $ map (try . pOperator) ["=", "::", "|", "->", ";", ",", "!"]
 
 lowerIdent :: Parser Name
 lowerIdent = label "lower identifier" $ lexeme $ do
@@ -104,13 +104,29 @@ pPat =
     try (ConP <$> getSourcePos <*> upperIdent <*> some pSinglePat)
       <|> pSinglePat
 
-pSingleExp :: Parser (Exp (Griff 'Parse))
-pSingleExp =
+pTuple :: Parser (Exp (Griff 'Parse))
+pTuple = label "tuple"
+  $ between (symbol "(") (symbol ")")
+  $ do
+    s <- getSourcePos
+    x <- pExp
+    pOperator ","
+    xs <- pExp `sepBy` pOperator ","
+    pure $ Tuple s (x : xs)
+
+pSingleExp' :: Parser (Exp (Griff 'Parse))
+pSingleExp' =
   Unboxed <$> getSourcePos <*> pUnboxed
     <|> pVariable
     <|> pConstructor
+    <|> try pTuple
     <|> pFun
     <|> between (symbol "(") (symbol ")") pExp
+
+pSingleExp :: Parser (Exp (Griff 'Parse))
+pSingleExp =
+  try (Force <$> getSourcePos <*> pSingleExp' <* pOperator "!")
+    <|> pSingleExp'
 
 pApply :: Parser (Exp (Griff 'Parse))
 pApply = do
@@ -142,11 +158,24 @@ pTyVar :: Parser (Type (Griff 'Parse))
 pTyVar = label "type variable" $ TyVar <$> getSourcePos <*> lowerIdent
 
 pTyCon :: Parser (Type (Griff 'Parse))
-pTyCon = label "type constructor" $
-  TyCon <$> getSourcePos <*> upperIdent
+pTyCon =
+  label "type constructor" $
+    TyCon <$> getSourcePos <*> upperIdent
+
+pTyTuple :: Parser (Type (Griff 'Parse))
+pTyTuple = between (symbol "(") (symbol ")") $ do
+  s <- getSourcePos
+  x <- pType
+  pOperator ","
+  xs <- pType `sepBy` pOperator ","
+  pure $ TyTuple s (x:xs)
+
+pTyLazy :: Parser (Type (Griff 'Parse))
+pTyLazy = between (symbol "{") (symbol "}") $ do
+  TyLazy <$> getSourcePos <*> pType
 
 pSingleType :: Parser (Type (Griff 'Parse))
-pSingleType = pTyVar <|> pTyCon <|> between (symbol "(") (symbol ")") pType
+pSingleType = pTyVar <|> pTyCon <|> pTyLazy <|> try pTyTuple <|> between (symbol "(") (symbol ")") pType
 
 pTyApp :: Parser (Type (Griff 'Parse))
 pTyApp = TyApp <$> getSourcePos <*> pSingleType <*> some pSingleType
@@ -207,7 +236,7 @@ pForign = label "forign import" $ do
   pOperator "::"
   t <- pType
   pure $ Forign s x t
-   
+
 pDecl :: Parser (Decl (Griff 'Parse))
 pDecl = pDataDef <|> pInfix <|> pForign <|> try pScSig <|> pScDef
 
