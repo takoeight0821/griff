@@ -104,10 +104,10 @@ deriving stock instance ForallTypeX Eq x => Eq (Type x)
 deriving stock instance ForallTypeX Show x => Show (Type x)
 
 instance (Pretty (XId x)) => Pretty (Type x) where
-  pPrintPrec l d (TyApp _ t ts) = P.maybeParens (d > 10) $ pPrint t <+> P.sep (map (pPrintPrec l 11) ts)
+  pPrintPrec l d (TyApp _ t ts) = P.maybeParens (d > 11) $ pPrint t <+> P.sep (map (pPrintPrec l 12) ts)
   pPrintPrec _ _ (TyVar _ i) = pPrint i
   pPrintPrec _ _ (TyCon _ i) = pPrint i
-  pPrintPrec l d (TyArr _ t1 t2) = P.maybeParens (d > 10) $ pPrintPrec l 11 t1 <+> "->" <+> pPrintPrec l 11 t2
+  pPrintPrec l d (TyArr _ t1 t2) = P.maybeParens (d > 10) $ pPrintPrec l 11 t1 <+> "->" <+> pPrintPrec l 10 t2
 
 -- Declaration
 

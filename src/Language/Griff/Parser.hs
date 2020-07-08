@@ -127,3 +127,32 @@ pExp :: Parser (Exp (Griff 'Parse))
 pExp =
   try pOpApp
     <|> pTerm
+
+pTyVar :: Parser (Type (Griff 'Parse))
+pTyVar = label "type variable" $ TyVar <$> getSourcePos <*> lowerIdent
+
+pTyCon :: Parser (Type (Griff 'Parse))
+pTyCon = label "type constructor" $ TyCon <$> getSourcePos <*> upperIdent
+
+pSingleType :: Parser (Type (Griff 'Parse))
+pSingleType = pTyVar <|> pTyCon <|> between (symbol "(") (symbol ")") pType
+
+pTyApp :: Parser (Type (Griff 'Parse))
+pTyApp = TyApp <$> getSourcePos <*> pSingleType <*> some pSingleType
+
+pTyTerm :: Parser (Type (Griff 'Parse))
+pTyTerm = try pTyApp <|> pSingleType
+
+pTyArr :: Parser (Type (Griff 'Parse))
+pTyArr = makeExprParser pTyTerm opTable
+  where
+    opTable =
+      [ [ InfixR $ do
+            s <- getSourcePos
+            symbol "->"
+            pure $ \l r -> TyArr s l r
+        ]
+      ]
+
+pType :: Parser (Type (Griff 'Parse))
+pType = try pTyArr <|> pTyTerm
