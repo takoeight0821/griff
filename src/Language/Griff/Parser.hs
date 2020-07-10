@@ -200,7 +200,7 @@ pType = try pTyArr <|> pTyTerm
 pScDef :: Parser (Decl (Griff 'Parse))
 pScDef =
   label "toplevel function definition" $
-    ScDef <$> getSourcePos <*> lowerIdent <*> many lowerIdent <* pOperator "=" <*> pExp
+    ScDef <$> getSourcePos <*> (lowerIdent <|> between (symbol "(") (symbol ")") operator)<*> many lowerIdent <* pOperator "=" <*> pExp
 
 pScSig :: Parser (Decl (Griff 'Parse))
 pScSig =
@@ -224,7 +224,7 @@ pInfix = label "infix declaration" $ do
   s <- getSourcePos
   a <- try (pKeyword "infixl" *> pure LeftA) <|> try (pKeyword "infixr" *> pure RightA) <|> (pKeyword "infix" *> pure NeutralA)
   i <- lexeme L.decimal
-  x <- operator
+  x <- between (symbol "(") (symbol ")") operator
   pure $ Infix s a i x
 
 pForign :: Parser (Decl (Griff 'Parse))
