@@ -45,7 +45,7 @@ data Exp x
   | Con (XCon x) (XId x) -- constructor
   | Unboxed (XUnboxed x) Unboxed
   | Apply (XApply x) (Exp x) (Exp x)
-  | OpApp (XOpApp x) (Exp x) (Exp x) (Exp x)
+  | OpApp (XOpApp x) (XId x) (Exp x) (Exp x)
   | Fn (XFn x) [Clause x]
   | Tuple (XTuple x) [Exp x]
   | Force (XForce x) (Exp x)
@@ -232,7 +232,9 @@ type instance XUnboxed (Griff _) = SourcePos
 
 type instance XApply (Griff _) = SourcePos
 
-type instance XOpApp (Griff _) = SourcePos
+type instance XOpApp (Griff 'Parse) = SourcePos
+
+type instance XOpApp (Griff 'Rename) = (SourcePos, (Assoc, Int))
 
 type instance XFn (Griff _) = SourcePos
 
@@ -268,4 +270,4 @@ type instance XInfix (Griff _) = SourcePos
 
 type instance XForign (Griff 'Parse) = SourcePos
 
-type instance XForign (Griff 'Rename) = (SourcePos, String)
+type instance XForign (Griff 'Rename) = (SourcePos, Text)

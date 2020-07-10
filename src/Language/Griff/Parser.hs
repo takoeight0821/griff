@@ -144,7 +144,7 @@ pOpApp = makeExprParser pTerm opTable
     opTable =
       [ [ InfixL $ do
             s <- getSourcePos
-            op <- Var <$> getSourcePos <*> operator
+            op <- operator
             pure $ \l r -> OpApp s op l r
         ]
       ]
