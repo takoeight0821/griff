@@ -1,14 +1,20 @@
+data Int# = TODOAddPrimitiveType;
+
+data Int = Int# Int#;
+
+forign import add_int :: (Int#, Int#) -> Int#;
+
+infixl 6 (+#);
+(+#) = {x y -> add_int (x, y)};
+
+infixl 0 (|>);
+(|>) = {x f -> f x};
+
 data List a = Nil | Cons a (List a);
  
 map f xs = xs |> { Nil -> Nil
                  | Cons x xs -> Cons (f x) (map f xs)
                  };
--- Desugared to:
--- FUN map f xs =
---   (\xs -> case xs of
---             Nil -> Nil
---             Cons x xs -> Cons (f x) (map f xs)
---   ) xs
 map' f = { Nil -> Nil
          | Cons x xs -> Cons (f x) (map f xs)
          };
