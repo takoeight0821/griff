@@ -19,6 +19,7 @@ dependencies:
 - lens
 - mtl
 - bytestring
+- list-predicate
 - megaparsec
 - parser-combinators
 - pretty

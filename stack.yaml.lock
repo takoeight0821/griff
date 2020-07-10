@@ -3,7 +3,14 @@
 # For more information, please see the documentation at:
 #   https://docs.haskellstack.org/en/stable/lock_files
 
-packages: []
+packages:
+- completed:
+    hackage: list-predicate-0.1.0.1@sha256:8ee7abd573902ccb92e19be8427a7e8e9a32222e6f7ae2cb06b1f13de6dd96a7,1875
+    pantry-tree:
+      size: 403
+      sha256: 1f82dab39a0e71ee8ef476a42e73e46e92cf9787e57fe329b88b6616f9ab504a
+  original:
+    hackage: list-predicate-0.1.0.1@sha256:8ee7abd573902ccb92e19be8427a7e8e9a32222e6f7ae2cb06b1f13de6dd96a7,1875
 snapshots:
 - completed:
     size: 496112

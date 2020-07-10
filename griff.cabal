@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: b6248a6d9e4276038bad0ee476aeb606974694bdae86d9d56705621b5e3dc323
+-- hash: ac62f781f09222329c9e588de4f762d9c2cb1dde1f4497f0e600680e63df04c5
 
 name:           griff
 version:        0.1.0.0
@@ -44,6 +44,7 @@ library
     , bytestring
     , containers
     , lens
+    , list-predicate
     , llvm-hs-pure
     , megaparsec
     , mtl
@@ -67,6 +68,7 @@ executable griff-exe
     , containers
     , griff
     , lens
+    , list-predicate
     , llvm-hs-pure
     , megaparsec
     , mtl
@@ -91,6 +93,7 @@ test-suite griff-test
     , containers
     , griff
     , lens
+    , list-predicate
     , llvm-hs-pure
     , megaparsec
     , mtl
