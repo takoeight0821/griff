@@ -28,10 +28,10 @@ symbol :: Text -> Parser Text
 symbol = L.symbol sc
 
 identLetter :: Parser Char
-identLetter = alphaNumChar <|> oneOf ("_#" :: String)
+identLetter = alphaNumChar <|> oneOf ("_#'" :: String)
 
 opLetter :: Parser Char
-opLetter = oneOf ("+-*/%=><:;|&!" :: String)
+opLetter = oneOf ("+-*/%=><:;|&!#" :: String)
 
 pKeyword :: Text -> Parser ()
 pKeyword keyword = void $ lexeme (string keyword <* notFollowedBy identLetter)
@@ -241,4 +241,4 @@ pDecl :: Parser (Decl (Griff 'Parse))
 pDecl = pDataDef <|> pInfix <|> pForign <|> try pScSig <|> pScDef
 
 pTopLevel :: Parser [Decl (Griff 'Parse)]
-pTopLevel = pDecl `sepBy` pOperator ";" <* eof
+pTopLevel = pDecl `sepEndBy` pOperator ";" <* eof

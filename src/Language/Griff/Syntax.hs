@@ -63,9 +63,11 @@ instance (Pretty (XId x)) => Pretty (Exp x) where
     P.maybeParens (d > 10) $
       P.sep [pPrintPrec l 11 e1, pPrintPrec l 10 o, pPrintPrec l 11 e2]
   pPrintPrec l _ (Fn _ cs) =
-    P.braces
-      $ foldl1 (\a b -> P.sep [a, "|" <+> b])
-      $ map (pPrintPrec l 0) cs
+    P.braces $
+      P.space
+        <> foldl1
+          (\a b -> P.sep [a, P.nest (-2) $ "|" <+> b])
+          (map (pPrintPrec l 0) cs)
   pPrintPrec _ _ (Tuple _ xs) = P.parens $ P.sep $ P.punctuate "," $ map pPrint xs
   pPrintPrec l _ (Force _ x) = pPrintPrec l 11 x <> "!"
 

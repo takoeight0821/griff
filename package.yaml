@@ -18,6 +18,7 @@ dependencies:
 - containers
 - lens
 - mtl
+- bytestring
 - megaparsec
 - parser-combinators
 - pretty
