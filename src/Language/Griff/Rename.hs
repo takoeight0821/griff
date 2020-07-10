@@ -10,8 +10,8 @@
 
 module Language.Griff.Rename where
 
+import Data.List.Predicate (allUnique)
 import qualified Data.Map as Map
-import qualified Data.Text as T
 import Language.Griff.Id
 import Language.Griff.MonadUniq
 import Language.Griff.Prelude
@@ -20,7 +20,7 @@ import Language.Griff.Syntax
 import Text.Megaparsec.Pos (SourcePos)
 import qualified Text.PrettyPrint as P
 
-type RnId = Id ()
+type RnId = Id NoMeta
 
 newtype RnState = RnState {_infixInfo :: Map RnId (Assoc, Int)}
   deriving stock (Show)
@@ -67,33 +67,34 @@ rnDecls :: MonadUniq m => [Decl (Griff 'Parse)] -> RnT m [Decl (Griff 'Rename)]
 rnDecls ds = do
   -- RnEnvの生成
   let (varNames, typeNames) = toplevelIdents ds
-  vm <- mconcat <$> traverse (\v -> Map.singleton v <$> newId () v) varNames
-  tm <- mconcat <$> traverse (\v -> Map.singleton v <$> newId () v) typeNames
+  vm <- mconcat <$> traverse (\v -> Map.singleton v <$> newId NoMeta v) varNames
+  tm <- mconcat <$> traverse (\v -> Map.singleton v <$> newId NoMeta v) typeNames
   let rnEnv = RnEnv vm tm
   -- RnStateの生成
   --   定義されていない識別子に対するInfixはエラー
-  rnState <- RnState <$> infixDecls ds
-  -- 生成したRnEnv, RnStateの元でtraverse rnDecl ds
-  put rnState
-  local (rnEnv <>) $ traverse rnDecl ds
+  local (rnEnv <>) $ do
+    rnState <- RnState <$> infixDecls ds
+    -- 生成したRnEnv, RnStateの元でtraverse rnDecl ds
+    put rnState
+    traverse rnDecl ds
 
 -- Declで定義されるトップレベル識別子はすでにRnEnvに正しく登録されているとする
 -- infix宣言はすでに解釈されRnStateに登録されているとする
 rnDecl :: MonadUniq m => Decl (Griff 'Parse) -> RnT m (Decl (Griff 'Rename))
 rnDecl (ScDef pos name params expr) = do
-  params' <- traverse (newId ()) params
+  params' <- traverse (newId NoMeta) params
   local (over varMap (Map.fromList (zip params params') <>)) $
     ScDef pos <$> lookupVarName pos name <*> pure params' <*> rnExp expr
 rnDecl (ScSig pos name typ) = ScSig pos <$> lookupVarName pos name <*> rnType typ
 rnDecl (DataDef pos name params cs) = do
-  params' <- traverse (newId ()) params
+  params' <- traverse (newId NoMeta) params
   local (over typeMap (Map.fromList (zip params params') <>)) $
-    DataDef pos <$> lookupTypeName pos name <*> pure params' <*> traverse (bitraverse (lookupTypeName pos) (traverse rnType)) cs
+    DataDef pos <$> lookupTypeName pos name <*> pure params' <*> traverse (bitraverse (lookupVarName pos) (traverse rnType)) cs
 rnDecl (Infix pos assoc prec name) = Infix pos assoc prec <$> lookupVarName pos name
 rnDecl (Forign pos name@(Name raw) typ) = Forign (pos, raw) <$> lookupVarName pos name <*> rnType typ
 
 -- 名前解決の他に，infix宣言に基づくOpAppの再構成も行う
-rnExp :: Monad m => Exp (Griff 'Parse) -> RnT m (Exp (Griff 'Rename))
+rnExp :: MonadUniq m => Exp (Griff 'Parse) -> RnT m (Exp (Griff 'Rename))
 rnExp (Var pos name) = Var pos <$> lookupVarName pos name
 rnExp (Con pos name) = Con pos <$> lookupVarName pos name
 rnExp (Unboxed pos val) = pure $ Unboxed pos val
@@ -106,9 +107,38 @@ rnExp (OpApp pos op e1 e2) = do
   case fixity of
     Just fixity -> pure $ mkOpApp pos fixity op' e1' e2'
     Nothing -> error $ show $ "error on" <+> pPrint pos <> ":" P.$+$ P.nest 2 ("fixity of" <+> pPrint op <+> "is not defined")
+rnExp (Fn pos cs) = Fn pos <$> traverse rnClause cs
+rnExp (Tuple pos es) = Tuple pos <$> traverse rnExp es
+rnExp (Force pos e) = Force pos <$> rnExp e
 
-rnType :: Type (Griff 'Parse) -> RnT m (Type (Griff 'Rename))
-rnType = undefined
+rnType :: Monad m => Type (Griff 'Parse) -> RnT m (Type (Griff 'Rename))
+rnType (TyApp pos t ts) = TyApp pos <$> rnType t <*> traverse rnType ts
+rnType (TyVar pos x) = TyVar pos <$> lookupTypeName pos x
+rnType (TyCon pos x) = TyCon pos <$> lookupTypeName pos x
+rnType (TyArr pos t1 t2) = TyArr pos <$> rnType t1 <*> rnType t2
+rnType (TyTuple pos ts) = TyTuple pos <$> traverse rnType ts
+rnType (TyLazy pos t) = TyLazy pos <$> rnType t
+
+rnClause :: MonadUniq m => Clause (Griff 'Parse) -> RnT m (Clause (Griff 'Rename))
+rnClause (Clause pos ps e) = do
+  let vars = concatMap patVars ps
+
+  -- varsに重複がないことを確認
+  when (not $ allUnique vars)
+    $ error
+    $ show
+    $ "error on" <+> pPrint pos <> ":" P.$+$ P.nest 2 ("same variables occurs in pattern")
+
+  vars' <- traverse (newId NoMeta) vars
+  let vm = Map.fromList $ zip vars vars'
+  local (over varMap (vm <>)) $ Clause pos <$> traverse rnPat ps <*> rnExp e
+  where
+    patVars (VarP _ x) = [x]
+    patVars (ConP _ _ xs) = concatMap patVars xs
+
+rnPat :: Monad m => Pat (Griff 'Parse) -> RnT m (Pat (Griff 'Rename))
+rnPat (VarP pos x) = VarP pos <$> lookupVarName pos x
+rnPat (ConP pos x xs) = ConP pos <$> lookupVarName pos x <*> traverse rnPat xs
 
 -- トップレベル識別子を列挙
 toplevelIdents :: [Decl (Griff 'Parse)] -> ([Name], [Name])
@@ -146,9 +176,9 @@ compareFixity (assoc1, prec1) (assoc2, prec2) =
     GT -> left
     LT -> right
     EQ -> case (assoc1, assoc2) of
-            (RightA, RightA) -> right
-            (LeftA, LeftA) -> left
-            _ -> error_please
+      (RightA, RightA) -> right
+      (LeftA, LeftA) -> left
+      _ -> error_please
   where
     right = (False, True)
     left = (False, False)

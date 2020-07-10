@@ -220,7 +220,7 @@ data Griff (p :: GriffPhase)
 
 type family GriffId (p :: GriffPhase) where
   GriffId 'Parse = Name
-  GriffId 'Rename = Id ()
+  GriffId 'Rename = Id NoMeta
 
 type instance XVar (Griff _) = SourcePos
 
