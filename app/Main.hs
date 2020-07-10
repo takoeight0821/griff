@@ -1,13 +1,21 @@
 {-# LANGUAGE OverloadedStrings #-}
+
 module Main where
 
 import qualified Data.Text.IO as T
+import Language.Griff.MonadUniq
 import Language.Griff.Parser (pTopLevel)
-import Text.Megaparsec (parse)
 import Language.Griff.Pretty
+import Language.Griff.Rename
+import Text.Megaparsec (errorBundlePretty, parse)
 import qualified Text.PrettyPrint as P
 
 main :: IO ()
 main = do
   src <- T.getContents
-  print $ P.sep . P.punctuate ";" . map pPrint <$> parse pTopLevel "<stdin>" src
+  ds <- case parse pTopLevel "<stdin>" src of
+    Right ds -> pure ds
+    Left err -> error $ errorBundlePretty err
+  print $ P.sep $ P.punctuate ";" $ map pPrint ds
+  (ds', _) <- runUniqT (rename ds) (UniqSupply 0)
+  print $ P.sep $ P.punctuate ";" $ map pPrint ds'
