@@ -19,6 +19,7 @@ module Language.Griff.Id
     IdMap (..),
     Name (..),
     isConName,
+    NoMeta(..),
   )
 where
 
@@ -40,6 +41,12 @@ instance Pretty Name where
 
 isConName :: Name -> Bool
 isConName (Name t) = if T.null t then False else T.head t `elem` ['A' .. 'Z']
+
+data NoMeta = NoMeta
+  deriving stock (Eq, Ord, Show)
+
+instance Pretty NoMeta where
+  pPrint NoMeta = ""
 
 data Id a = Id
   { _idName :: Name,
