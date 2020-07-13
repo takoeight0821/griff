@@ -49,14 +49,14 @@ lookupVarName pos name = do
   vm <- view varEnv
   case vm ^. at name of
     Just name' -> pure name'
-    Nothing -> error $ show $ "error on" <+> pPrint pos <> ":" P.$+$ P.nest 2 (pPrint name <+> "is not defined")
+    Nothing -> errorOn pos $ "Not in scope:" <+> P.quotes (pPrint name)
 
 lookupTypeName :: Monad m => SourcePos -> Name -> RnT m RnId
 lookupTypeName pos name = do
   tm <- view typeEnv
   case tm ^. at name of
     Just name' -> pure name'
-    Nothing -> error $ show $ "error on" <+> pPrint pos <> ":" P.$+$ P.nest 2 (pPrint name <+> "is not defined")
+    Nothing -> errorOn pos $ "Not in scope:" <+> P.quotes (pPrint name)
 
 rename :: MonadUniq m => [Decl (Griff 'Parse)] -> m [Decl (Griff 'Rename)]
 rename ds = evalStateT (runReaderT (rnDecls ds) mempty) mempty
@@ -106,7 +106,7 @@ rnExp (OpApp pos op e1 e2) = do
   fixity <- Map.lookup op' <$> use infixInfo
   case fixity of
     Just fixity -> pure $ mkOpApp pos fixity op' e1' e2'
-    Nothing -> error $ show $ "error on" <+> pPrint pos <> ":" P.$+$ P.nest 2 ("fixity of" <+> pPrint op <+> "is not defined")
+    Nothing -> errorOn pos $ "No infix declaration:" <+> P.quotes (pPrint op)
 rnExp (Fn pos cs) = Fn pos <$> traverse rnClause cs
 rnExp (Tuple pos es) = Tuple pos <$> traverse rnExp es
 rnExp (Force pos e) = Force pos <$> rnExp e
@@ -124,10 +124,8 @@ rnClause (Clause pos ps e) = do
   let vars = concatMap patVars ps
 
   -- varsに重複がないことを確認
-  when (not $ allUnique vars)
-    $ error
-    $ show
-    $ "error on" <+> pPrint pos <> ":" P.$+$ P.nest 2 ("same variables occurs in pattern")
+  when (not $ allUnique vars) $
+    errorOn pos "Same variables occurs in a pattern"
 
   vars' <- traverse (newId NoMeta) vars
   let vm = Map.fromList $ zip vars vars'
@@ -164,7 +162,7 @@ infixDecls ds = mconcat <$> traverse f ds
 mkOpApp :: SourcePos -> (Assoc, Int) -> RnId -> Exp (Griff 'Rename) -> Exp (Griff 'Rename) -> Exp (Griff 'Rename)
 -- (e11 op1 e12) op2 e2
 mkOpApp pos2 fix2 op2 (OpApp (pos1, fix1) op1 e11 e12) e2
-  | nofix_error = error $ show $ "error on" <+> pPrint pos1 <> ":" P.$+$ P.nest 2 (pPrint op1 <+> pPrint op2 <+> "are not associative. (need '( )')")
+  | nofix_error = errorOn pos1 $ pPrint op1 <+> pPrint op2 <+> "are not associative. (need '( )')"
   | associate_right = OpApp (pos1, fix1) op1 e11 (OpApp (pos2, fix2) op2 e12 e2)
   where
     (nofix_error, associate_right) = compareFixity fix1 fix2
