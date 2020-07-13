@@ -44,6 +44,10 @@ module Language.Griff.Prelude
     (<<$>>),
     ordNub,
     replaceOf,
+    IORef,
+    newIORef,
+    readIORef,
+    writeIORef,
     Undefined (..),
   )
 where
@@ -67,6 +71,8 @@ import Data.Bitraversable
 import Data.Coerce
 import Data.Data (Data, Typeable)
 import Data.Foldable
+import Data.IORef (IORef)
+import qualified Data.IORef as I
 import Data.List.NonEmpty (NonEmpty (..))
 import Data.Map (Map)
 import Data.Maybe
@@ -120,6 +126,15 @@ ordNub = go Set.empty
 
 replaceOf :: Eq a => ASetter' s a -> a -> a -> s -> s
 replaceOf l x x' = over l (\v -> if v == x then x' else v)
+
+newIORef :: MonadIO m => a -> m (IORef a)
+newIORef a = liftIO $ I.newIORef a
+
+readIORef :: MonadIO m => IORef a -> m a
+readIORef r = liftIO $ I.readIORef r
+
+writeIORef :: MonadIO m => IORef a -> a -> m ()
+writeIORef r v = liftIO $ I.writeIORef r v
 
 -- mtlのインスタンスの追加定義
 instance (Monoid w, Monad m) => MonadWriter w (WriterT w m) where
