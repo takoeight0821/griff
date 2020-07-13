@@ -29,8 +29,8 @@ newtype RnState = RnState {_infixInfo :: Map RnId (Assoc, Int)}
 makeLenses ''RnState
 
 data RnEnv = RnEnv
-  { _varMap :: Map Name RnId,
-    _typeMap :: Map Name RnId
+  { _varEnv :: Map Name RnId,
+    _typeEnv :: Map Name RnId
   }
   deriving stock (Show)
 
@@ -46,14 +46,14 @@ type RnT m a = ReaderT RnEnv (StateT RnState m) a
 
 lookupVarName :: Monad m => SourcePos -> Name -> RnT m RnId
 lookupVarName pos name = do
-  vm <- view varMap
+  vm <- view varEnv
   case vm ^. at name of
     Just name' -> pure name'
     Nothing -> error $ show $ "error on" <+> pPrint pos <> ":" P.$+$ P.nest 2 (pPrint name <+> "is not defined")
 
 lookupTypeName :: Monad m => SourcePos -> Name -> RnT m RnId
 lookupTypeName pos name = do
-  tm <- view typeMap
+  tm <- view typeEnv
   case tm ^. at name of
     Just name' -> pure name'
     Nothing -> error $ show $ "error on" <+> pPrint pos <> ":" P.$+$ P.nest 2 (pPrint name <+> "is not defined")
@@ -83,12 +83,12 @@ rnDecls ds = do
 rnDecl :: MonadUniq m => Decl (Griff 'Parse) -> RnT m (Decl (Griff 'Rename))
 rnDecl (ScDef pos name params expr) = do
   params' <- traverse (newId NoMeta) params
-  local (over varMap (Map.fromList (zip params params') <>)) $
+  local (over varEnv (Map.fromList (zip params params') <>)) $
     ScDef pos <$> lookupVarName pos name <*> pure params' <*> rnExp expr
 rnDecl (ScSig pos name typ) = ScSig pos <$> lookupVarName pos name <*> rnType typ
 rnDecl (DataDef pos name params cs) = do
   params' <- traverse (newId NoMeta) params
-  local (over typeMap (Map.fromList (zip params params') <>)) $
+  local (over typeEnv (Map.fromList (zip params params') <>)) $
     DataDef pos <$> lookupTypeName pos name <*> pure params' <*> traverse (bitraverse (lookupVarName pos) (traverse rnType)) cs
 rnDecl (Infix pos assoc prec name) = Infix pos assoc prec <$> lookupVarName pos name
 rnDecl (Forign pos name@(Name raw) typ) = Forign (pos, raw) <$> lookupVarName pos name <*> rnType typ
@@ -131,7 +131,7 @@ rnClause (Clause pos ps e) = do
 
   vars' <- traverse (newId NoMeta) vars
   let vm = Map.fromList $ zip vars vars'
-  local (over varMap (vm <>)) $ Clause pos <$> traverse rnPat ps <*> rnExp e
+  local (over varEnv (vm <>)) $ Clause pos <$> traverse rnPat ps <*> rnExp e
   where
     patVars (VarP _ x) = [x]
     patVars (ConP _ _ xs) = concatMap patVars xs
