@@ -224,7 +224,7 @@ data Griff (p :: GriffPhase)
 type family GriffId (p :: GriffPhase) where
   GriffId 'Parse = Name
   GriffId 'Rename = Id NoMeta
-  GriffId 'TypeCheck = Id T.Scheme
+  GriffId 'TypeCheck = Id T.Sigma
 
 type family GriffTId (p :: GriffPhase) where
   GriffTId 'Parse = Name
