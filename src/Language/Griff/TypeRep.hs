@@ -5,7 +5,6 @@
 
 module Language.Griff.TypeRep where
 
-import Data.IORef (IORef)
 import Language.Griff.Id
 import Language.Griff.Prelude
 import Language.Griff.Pretty
