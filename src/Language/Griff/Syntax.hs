@@ -22,6 +22,7 @@ import qualified Data.Kind as K
 import Language.Griff.Id
 import Language.Griff.Prelude
 import Language.Griff.Pretty
+import qualified Language.Griff.TypeRep as T
 import qualified Text.PrettyPrint.HughesPJ as P
 import Text.Megaparsec.Pos (SourcePos)
 
@@ -101,8 +102,8 @@ instance (Pretty (XId x)) => Pretty (Pat x) where
 
 data Type x
   = TyApp (XTyApp x) (Type x) [Type x]
-  | TyVar (XTyVar x) (XId x)
-  | TyCon (XTyCon x) (XId x)
+  | TyVar (XTyVar x) (XTId x)
+  | TyCon (XTyCon x) (XTId x)
   | TyArr (XTyArr x) (Type x) (Type x)
   | TyTuple (XTyTuple x) [Type x]
   | TyLazy (XTyLazy x) (Type x)
@@ -111,7 +112,7 @@ deriving stock instance ForallTypeX Eq x => Eq (Type x)
 
 deriving stock instance ForallTypeX Show x => Show (Type x)
 
-instance (Pretty (XId x)) => Pretty (Type x) where
+instance (Pretty (XTId x)) => Pretty (Type x) where
   pPrintPrec l d (TyApp _ t ts) = P.maybeParens (d > 11) $ pPrint t <+> P.sep (map (pPrintPrec l 12) ts)
   pPrintPrec _ _ (TyVar _ i) = pPrint i
   pPrintPrec _ _ (TyCon _ i) = pPrint i
@@ -124,7 +125,7 @@ instance (Pretty (XId x)) => Pretty (Type x) where
 data Decl x
   = ScDef (XScDef x) (XId x) [XId x] (Exp x)
   | ScSig (XScSig x) (XId x) (Type x)
-  | DataDef (XDataDef x) (XId x) [XId x] [(XId x, [Type x])]
+  | DataDef (XDataDef x) (XTId x) [XTId x] [(XId x, [Type x])]
   | Infix (XInfix x) Assoc Int (XId x)
   | Forign (XForign x) (XId x) (Type x)
 
@@ -132,7 +133,7 @@ deriving stock instance ForallDeclX Eq x => Eq (Decl x)
 
 deriving stock instance ForallDeclX Show x => Show (Decl x)
 
-instance (Pretty (XId x)) => Pretty (Decl x) where
+instance (Pretty (XId x), Pretty (XTId x)) => Pretty (Decl x) where
   pPrint (ScDef _ f xs e) = P.sep [pPrint f <+> P.sep (map pPrint xs) <+> "=", P.nest 2 $ pPrint e]
   pPrint (ScSig _ f t) = pPrint f <+> "::" <+> pPrint t
   pPrint (DataDef _ d xs cs) = P.sep ["data" <+> pPrint d <+> P.sep (map pPrint xs) <+> "=", foldl1 (\a b -> P.sep [a, "|" <+> b]) $ map pprConDef cs]
@@ -185,6 +186,8 @@ type family XConP x
 type ForallPatX (c :: K.Type -> Constraint) x = (c (XVarP x), c (XConP x), c (XId x))
 
 -- Type Extensions
+type family XTId x
+
 type family XTyApp x
 
 type family XTyVar x
@@ -197,7 +200,7 @@ type family XTyTuple x
 
 type family XTyLazy x
 
-type ForallTypeX (c :: K.Type -> Constraint) x = (c (XTyApp x), c (XTyVar x), c (XTyCon x), c (XTyArr x), c (XTyTuple x), c (XTyLazy x), c (XId x))
+type ForallTypeX (c :: K.Type -> Constraint) x = (c (XTyApp x), c (XTyVar x), c (XTyCon x), c (XTyArr x), c (XTyTuple x), c (XTyLazy x), c (XId x), c (XTId x))
 
 -- Decl Extensions
 
@@ -221,6 +224,12 @@ data Griff (p :: GriffPhase)
 type family GriffId (p :: GriffPhase) where
   GriffId 'Parse = Name
   GriffId 'Rename = Id NoMeta
+  GriffId 'TypeCheck = Id T.Scheme
+
+type family GriffTId (p :: GriffPhase) where
+  GriffTId 'Parse = Name
+  GriffTId 'Rename = Id NoMeta
+  GriffTId 'TypeCheck = Id NoMeta
 
 type instance XVar (Griff _) = SourcePos
 
@@ -247,6 +256,8 @@ type instance XClause (Griff _) = SourcePos
 type instance XVarP (Griff _) = SourcePos
 
 type instance XConP (Griff _) = SourcePos
+
+type instance XTId (Griff p) = GriffTId p
 
 type instance XTyApp (Griff _) = SourcePos
 
