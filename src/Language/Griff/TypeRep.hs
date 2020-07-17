@@ -104,11 +104,12 @@ instance Pretty TyVar where
 -- Primitive Types --
 ---------------------
 
-data PrimT = IntT | FloatT | DoubleT | CharT | StringT
+data PrimT = Int32T | Int64T | FloatT | DoubleT | CharT | StringT
   deriving stock (Eq, Show, Ord)
 
 instance Pretty PrimT where
-  pPrint IntT = "Int#"
+  pPrint Int32T = "Int32#"
+  pPrint Int64T = "Int64#"
   pPrint FloatT = "Float#"
   pPrint DoubleT = "Double#"
   pPrint CharT = "Char#"
