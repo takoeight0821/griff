@@ -1,11 +1,11 @@
-data Int# = TODOAddPrimitiveType;
+data Int64# = TODOAddPrimitiveType;
 
-data Int = Int# Int#;
+data Int = Int# Int64#;
 
-forign import add_int :: (Int#, Int#) -> Int#;
+forign import add_int64 :: (Int64#, Int64#) -> Int64#;
 
 infixl 6 (+#);
-(+#) = {x y -> add_int (x, y)};
+(+#) = {x y -> add_int64 (x, y)};
 
 infixl 0 (|>);
 (|>) = {x f -> f x};

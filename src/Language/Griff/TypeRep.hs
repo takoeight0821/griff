@@ -45,13 +45,13 @@ type Tau = Type -- No Foralls anywhere
 
 data Type
   = Forall [TyVar] Rho
-  | TyApp Rho Rho
+  | TyApp Tau Tau
   | TyVar TyVar
   | TyCon (Id Kind)
   | PrimT PrimT
   | TyArr Type Type
-  | TupleT [Rho]
-  | LazyT Rho
+  | TupleT [Tau]
+  | LazyT Tau
   | MetaTv TyMeta
   deriving stock (Eq, Show, Ord)
 
