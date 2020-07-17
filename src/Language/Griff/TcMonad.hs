@@ -3,6 +3,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
+-- Type inference is inspired by Practical type inference for arbitrary-rank types
 module Language.Griff.TcMonad where
 
 import qualified Data.Map as Map
@@ -12,9 +13,8 @@ import Language.Griff.Prelude
 import Language.Griff.Pretty
 import Language.Griff.Rename (RnId)
 import Language.Griff.TypeRep
-import qualified Text.PrettyPrint.HughesPJ as P
 import Text.Megaparsec.Pos (SourcePos)
-import qualified Data.Text as Text
+import qualified Text.PrettyPrint.HughesPJ as P
 
 data TcEnv = TcEnv {_varEnv :: Map RnId Sigma}
 
@@ -122,9 +122,9 @@ getFreeTyVars tys = do
 zonkType :: MonadIO f => Sigma -> f Sigma
 zonkType (Forall ns ty) = Forall ns <$> zonkType ty
 zonkType (TyApp t1 t2) = TyApp <$> zonkType t1 <*> zonkType t2
-zonkType t@TyVar{} = pure t  
-zonkType t@TyCon{} = pure t
-zonkType t@PrimT{} = pure t
+zonkType t@TyVar {} = pure t
+zonkType t@TyCon {} = pure t
+zonkType t@PrimT {} = pure t
 zonkType (TyArr t1 t2) = TyArr <$> zonkType t1 <*> zonkType t2
 zonkType (TupleT ts) = TupleT <$> traverse zonkType ts
 zonkType (LazyT t) = LazyT <$> zonkType t
@@ -140,9 +140,59 @@ zonkType (MetaTv tv) = do
 -----------------
 -- Unification --
 -----------------
+
+unify :: MonadIO m => SourcePos -> Tau -> Tau -> m ()
 unify pos ty1 ty2
   | kind ty1 /= kind ty2 = errorOn pos $ "Kind mismatch:" <+> P.vcat [pPrint ty1, pPrint ty2]
-  | badType ty1 || badType ty2 = errorOn pos $ "Panic! Unxepected types in unification:" <+> P.vcat [pPrint ty1, pPrint ty2] 
+  | badType ty1 || badType ty2 = errorOn pos $ "Panic! Unxepected types in unification:" <+> P.vcat [pPrint ty1, pPrint ty2]
+unify pos (TyApp t11 t12) (TyApp t21 t22) = do
+  unify pos t11 t21
+  unify pos t12 t22
+unify _ (TyVar tv1) (TyVar tv2) | tv1 == tv2 = pure ()
+unify _ (TyCon c1) (TyCon c2) | c1 == c2 = pure ()
+unify _ (PrimT t1) (PrimT t2) | t1 == t2 = pure ()
+unify pos (TyArr arg1 res1) (TyArr arg2 res2) = do
+  unify pos arg1 arg2
+  unify pos res1 res2
+unify pos (TupleT ts1) (TupleT ts2) = zipWithM_ (unify pos) ts1 ts2
+unify pos (LazyT t1) (LazyT t2) = unify pos t1 t2
+unify _ (MetaTv tv1) (MetaTv tv2) | tv1 == tv2 = pure ()
+unify pos (MetaTv tv) ty = unifyVar pos tv ty
+unify pos ty1 ty2 = errorOn pos $ "Cannot unify types:" <+> P.vcat [pPrint ty1, pPrint ty2]
+
+-- Invariant: tv1 is a flexible type variable
+unifyVar :: MonadIO m => SourcePos -> TyMeta -> Tau -> m ()
+unifyVar pos tv1 ty2 = do
+  -- Check whether tv1 is bound
+  mb_ty1 <- readTv tv1
+  case mb_ty1 of
+    Just ty1 -> unify pos ty1 ty2
+    Nothing -> unifyUnboundVar pos tv1 ty2
+
+-- Invariant: the flexible type variable tv1 is not bound
+unifyUnboundVar :: MonadIO m => SourcePos -> TyMeta -> Tau -> m ()
+unifyUnboundVar pos tv1 ty2@(MetaTv tv2) = do
+  -- We know that tv1 /= tv2 (else the top case in unify would catch it)
+  mb_ty2 <- readTv tv2
+  case mb_ty2 of
+    Just ty2' -> unify pos (MetaTv tv1) ty2'
+    Nothing -> writeTv tv1 ty2
+unifyUnboundVar pos tv1 ty2 = do
+  tvs2 <- getMetaTvs [ty2]
+  if tv1 `elem` tvs2
+    then occursCheckErr pos tv1 ty2
+    else writeTv tv1 ty2
+
+unifyTyArr :: (MonadUniq f, MonadIO f) => SourcePos -> Rho -> f (Sigma, Rho)
+unifyTyArr _ (TyArr arg res) = pure (arg, res)
+unifyTyArr pos tau = do
+  arg <- newMetaTv Star
+  res <- newMetaTv Star
+  unify pos tau (arg `TyArr` res)
+  pure (arg, res)
+
+occursCheckErr :: SourcePos -> TyMeta -> Type -> a
+occursCheckErr pos tv ty = errorOn pos $ "Occurs check for" <+> P.quotes (pPrint tv) <+> "in:" <+> pPrint ty
 
 badType :: Type -> Bool
 badType (TyVar (BoundTv _)) = True
