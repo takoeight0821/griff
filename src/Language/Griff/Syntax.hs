@@ -245,6 +245,8 @@ type instance XOpApp (Griff 'Parse) = SourcePos
 
 type instance XOpApp (Griff 'Rename) = (SourcePos, (Assoc, Int))
 
+type instance XOpApp (Griff 'TypeCheck) = (SourcePos, (Assoc, Int))
+
 type instance XFn (Griff _) = SourcePos
 
 type instance XTuple (Griff _) = SourcePos
