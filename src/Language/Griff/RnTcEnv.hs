@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -10,9 +11,11 @@ import qualified Data.Map as Map
 import Language.Griff.Id
 import Language.Griff.MonadUniq
 import Language.Griff.Prelude
-import Language.Griff.Syntax (Assoc)
+import Language.Griff.Syntax (Assoc, Griff, GriffPhase (Parse, Rename), XId)
 
-type RnId = Id NoMeta
+type PsId = XId (Griff 'Parse)
+
+type RnId = XId (Griff 'Rename)
 
 newtype RnState = RnState {_infixInfo :: Map RnId (Assoc, Int)}
   deriving stock (Show)
@@ -21,8 +24,8 @@ newtype RnState = RnState {_infixInfo :: Map RnId (Assoc, Int)}
 makeLenses ''RnState
 
 data RnEnv = RnEnv
-  { _varEnv :: Map Name RnId,
-    _typeEnv :: Map Name RnId
+  { _varEnv :: Map PsId RnId,
+    _typeEnv :: Map PsId RnId
   }
   deriving stock (Show)
 
