@@ -16,31 +16,10 @@ import Language.Griff.Id
 import Language.Griff.MonadUniq
 import Language.Griff.Prelude
 import Language.Griff.Pretty
+import Language.Griff.RnTcEnv
 import Language.Griff.Syntax
 import Text.Megaparsec.Pos (SourcePos)
 import qualified Text.PrettyPrint as P
-
-type RnId = Id NoMeta
-
-newtype RnState = RnState {_infixInfo :: Map RnId (Assoc, Int)}
-  deriving stock (Show)
-  deriving newtype (Semigroup, Monoid)
-
-makeLenses ''RnState
-
-data RnEnv = RnEnv
-  { _varEnv :: Map Name RnId,
-    _typeEnv :: Map Name RnId
-  }
-  deriving stock (Show)
-
-instance Semigroup RnEnv where
-  RnEnv v1 t1 <> RnEnv v2 t2 = RnEnv (v1 <> v2) (t1 <> t2)
-
-instance Monoid RnEnv where
-  mempty = RnEnv mempty mempty
-
-makeLenses ''RnEnv
 
 lookupVarName :: MonadReader RnEnv m => SourcePos -> Name -> m RnId
 lookupVarName pos name = do
@@ -56,34 +35,11 @@ lookupTypeName pos name = do
     Just name' -> pure name'
     Nothing -> errorOn pos $ "Not in scope:" <+> P.quotes (pPrint name)
 
-rename :: MonadUniq m => [Decl (Griff 'Parse)] -> m [Decl (Griff 'Rename)]
-rename ds = do
-  evalStateT ?? mempty $
-    runReaderT ?? mempty $ do
-      -- generate primitive type RnId
-      bool_t <- newId NoMeta "Bool#"
-      int32_t <- newId NoMeta "Int32#"
-      int64_t <- newId NoMeta "Int64#"
-      float_t <- newId NoMeta "Float#"
-      double_t <- newId NoMeta "Double#"
-      char_t <- newId NoMeta "Char#"
-      string_t <- newId NoMeta "String#"
-      local
-        ( over
-            typeEnv
-            ( Map.fromList
-                [ ("Bool#", bool_t),
-                  ("Int32#", int32_t),
-                  ("Int64#", int64_t),
-                  ("Float#", float_t),
-                  ("Double#", double_t),
-                  ("Char#", char_t),
-                  ("String#", string_t)
-                ]
-                <>
-            )
-        )
-        $ rnDecls ds
+rename :: MonadUniq m => RnState -> RnEnv -> [Decl (Griff 'Parse)] -> m [Decl (Griff 'Rename)]
+rename rnState rnEnv ds =
+  evalStateT ?? rnState $
+    runReaderT ?? rnEnv $
+      rnDecls ds
 
 -- renamer
 
