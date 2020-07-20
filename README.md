@@ -95,6 +95,7 @@ main :: {()}
 ```c
 #include "Main.grfi.h"
 int main(void) {
-  grf_Main_main()
+  grf_load_Main();
+  grf_Main_main();
 }
 ```
