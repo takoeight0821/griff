@@ -1,5 +1,3 @@
-data Int64# = TODOAddPrimitiveType;
-
 data Int = Int# Int64#;
 
 forign import add_int64 :: (Int64#, Int64#) -> Int64#;

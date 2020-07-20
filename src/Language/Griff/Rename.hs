@@ -57,7 +57,33 @@ lookupTypeName pos name = do
     Nothing -> errorOn pos $ "Not in scope:" <+> P.quotes (pPrint name)
 
 rename :: MonadUniq m => [Decl (Griff 'Parse)] -> m [Decl (Griff 'Rename)]
-rename ds = evalStateT (runReaderT (rnDecls ds) mempty) mempty
+rename ds = do
+  evalStateT ?? mempty $
+    runReaderT ?? mempty $ do
+      -- generate primitive type RnId
+      bool_t <- newId NoMeta "Bool#"
+      int32_t <- newId NoMeta "Int32#"
+      int64_t <- newId NoMeta "Int64#"
+      float_t <- newId NoMeta "Float#"
+      double_t <- newId NoMeta "Double#"
+      char_t <- newId NoMeta "Char#"
+      string_t <- newId NoMeta "String#"
+      local
+        ( over
+            typeEnv
+            ( Map.fromList
+                [ ("Bool#", bool_t),
+                  ("Int32#", int32_t),
+                  ("Int64#", int64_t),
+                  ("Float#", float_t),
+                  ("Double#", double_t),
+                  ("Char#", char_t),
+                  ("String#", string_t)
+                ]
+                <>
+            )
+        )
+        $ rnDecls ds
 
 -- renamer
 
