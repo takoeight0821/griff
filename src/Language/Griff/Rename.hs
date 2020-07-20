@@ -16,7 +16,7 @@ import Language.Griff.Id
 import Language.Griff.MonadUniq
 import Language.Griff.Prelude
 import Language.Griff.Pretty
-import Language.Griff.RnTcEnv
+import Language.Griff.RnEnv
 import Language.Griff.Syntax
 import Text.Megaparsec.Pos (SourcePos)
 import qualified Text.PrettyPrint as P

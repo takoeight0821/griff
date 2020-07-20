@@ -5,7 +5,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Language.Griff.RnTcEnv where
+module Language.Griff.RnEnv where
 
 import qualified Data.Map as Map
 import Language.Griff.Id
