@@ -28,10 +28,11 @@ import Text.Megaparsec.Pos (SourcePos)
 
 -- Unboxed literal
 
-data Unboxed = Int32 Int32 | Int64 Int64 | Float Float | Double Double | Char Char | String String
+data Unboxed = Bool Bool | Int32 Int32 | Int64 Int64 | Float Float | Double Double | Char Char | String String
   deriving stock (Show, Eq, Ord)
 
 instance Pretty Unboxed where
+  pPrint (Bool b) = if b then "True#" else "False#"
   pPrint (Int32 i) = P.int (fromIntegral i) <> "#"
   pPrint (Int64 i) = P.int (fromIntegral i) <> "L#"
   pPrint (Float f) = P.float f <> "F#"
@@ -88,6 +89,7 @@ instance (Pretty (XId x)) => Pretty (Clause x) where
 data Pat x
   = VarP (XVarP x) (XId x)
   | ConP (XConP x) (XId x) [Pat x]
+  | UnboxedP (XUnboxedP x) Unboxed
 
 deriving stock instance ForallPatX Eq x => Eq (Pat x)
 
@@ -97,6 +99,7 @@ instance (Pretty (XId x)) => Pretty (Pat x) where
   pPrintPrec _ _ (VarP _ i) = pPrint i
   pPrintPrec _ _ (ConP _ i []) = pPrint i
   pPrintPrec l d (ConP _ i ps) = P.maybeParens (d > 10) $ pPrint i <+> P.sep (map (pPrintPrec l 11) ps)
+  pPrintPrec _ _ (UnboxedP _ u) = pPrint u
 
 -- Type
 
@@ -183,7 +186,9 @@ type family XVarP x
 
 type family XConP x
 
-type ForallPatX (c :: K.Type -> Constraint) x = (c (XVarP x), c (XConP x), c (XId x))
+type family XUnboxedP x
+
+type ForallPatX (c :: K.Type -> Constraint) x = (c (XVarP x), c (XConP x), c (XUnboxedP x), c (XId x))
 
 -- Type Extensions
 type family XTId x
@@ -258,6 +263,8 @@ type instance XClause (Griff _) = SourcePos
 type instance XVarP (Griff _) = SourcePos
 
 type instance XConP (Griff _) = SourcePos
+
+type instance XUnboxedP (Griff _) = SourcePos
 
 type instance XTId (Griff p) = GriffTId p
 

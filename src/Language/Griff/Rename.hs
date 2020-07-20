@@ -42,16 +42,14 @@ instance Monoid RnEnv where
 
 makeLenses ''RnEnv
 
-type RnT m a = ReaderT RnEnv (StateT RnState m) a
-
-lookupVarName :: Monad m => SourcePos -> Name -> RnT m RnId
+lookupVarName :: MonadReader RnEnv m => SourcePos -> Name -> m RnId
 lookupVarName pos name = do
   vm <- view varEnv
   case vm ^. at name of
     Just name' -> pure name'
     Nothing -> errorOn pos $ "Not in scope:" <+> P.quotes (pPrint name)
 
-lookupTypeName :: Monad m => SourcePos -> Name -> RnT m RnId
+lookupTypeName :: MonadReader RnEnv m => SourcePos -> Name -> m RnId
 lookupTypeName pos name = do
   tm <- view typeEnv
   case tm ^. at name of
@@ -63,7 +61,7 @@ rename ds = evalStateT (runReaderT (rnDecls ds) mempty) mempty
 
 -- renamer
 
-rnDecls :: MonadUniq m => [Decl (Griff 'Parse)] -> RnT m [Decl (Griff 'Rename)]
+rnDecls :: (MonadUniq m, MonadReader RnEnv m, MonadState RnState m) => [Decl (Griff 'Parse)] -> m [Decl (Griff 'Rename)]
 rnDecls ds = do
   -- RnEnvの生成
   let (varNames, typeNames) = toplevelIdents ds
@@ -80,7 +78,7 @@ rnDecls ds = do
 
 -- Declで定義されるトップレベル識別子はすでにRnEnvに正しく登録されているとする
 -- infix宣言はすでに解釈されRnStateに登録されているとする
-rnDecl :: MonadUniq m => Decl (Griff 'Parse) -> RnT m (Decl (Griff 'Rename))
+rnDecl :: (MonadUniq m, MonadReader RnEnv m, MonadState RnState m) => Decl (Griff 'Parse) -> m (Decl (Griff 'Rename))
 rnDecl (ScDef pos name params expr) = do
   params' <- traverse (newId NoMeta) params
   local (over varEnv (Map.fromList (zip params params') <>)) $
@@ -94,7 +92,7 @@ rnDecl (Infix pos assoc prec name) = Infix pos assoc prec <$> lookupVarName pos 
 rnDecl (Forign pos name@(Name raw) typ) = Forign (pos, raw) <$> lookupVarName pos name <*> rnType typ
 
 -- 名前解決の他に，infix宣言に基づくOpAppの再構成も行う
-rnExp :: MonadUniq m => Exp (Griff 'Parse) -> RnT m (Exp (Griff 'Rename))
+rnExp :: (MonadReader RnEnv m, MonadState RnState m, MonadUniq m) => Exp (Griff 'Parse) -> m (Exp (Griff 'Rename))
 rnExp (Var pos name) = Var pos <$> lookupVarName pos name
 rnExp (Con pos name) = Con pos <$> lookupVarName pos name
 rnExp (Unboxed pos val) = pure $ Unboxed pos val
@@ -111,7 +109,7 @@ rnExp (Fn pos cs) = Fn pos <$> traverse rnClause cs
 rnExp (Tuple pos es) = Tuple pos <$> traverse rnExp es
 rnExp (Force pos e) = Force pos <$> rnExp e
 
-rnType :: Monad m => Type (Griff 'Parse) -> RnT m (Type (Griff 'Rename))
+rnType :: MonadReader RnEnv m => Type (Griff 'Parse) -> m (Type (Griff 'Rename))
 rnType (TyApp pos t ts) = TyApp pos <$> rnType t <*> traverse rnType ts
 rnType (TyVar pos x) = TyVar pos <$> lookupTypeName pos x
 rnType (TyCon pos x) = TyCon pos <$> lookupTypeName pos x
@@ -119,7 +117,7 @@ rnType (TyArr pos t1 t2) = TyArr pos <$> rnType t1 <*> rnType t2
 rnType (TyTuple pos ts) = TyTuple pos <$> traverse rnType ts
 rnType (TyLazy pos t) = TyLazy pos <$> rnType t
 
-rnClause :: MonadUniq m => Clause (Griff 'Parse) -> RnT m (Clause (Griff 'Rename))
+rnClause :: (MonadUniq m, MonadReader RnEnv m, MonadState RnState m) => Clause (Griff 'Parse) -> m (Clause (Griff 'Rename))
 rnClause (Clause pos ps e) = do
   let vars = concatMap patVars ps
 
@@ -133,10 +131,12 @@ rnClause (Clause pos ps e) = do
   where
     patVars (VarP _ x) = [x]
     patVars (ConP _ _ xs) = concatMap patVars xs
+    patVars UnboxedP {} = []
 
-rnPat :: Monad m => Pat (Griff 'Parse) -> RnT m (Pat (Griff 'Rename))
+rnPat :: MonadReader RnEnv m => Pat (Griff 'Parse) -> m (Pat (Griff 'Rename))
 rnPat (VarP pos x) = VarP pos <$> lookupVarName pos x
 rnPat (ConP pos x xs) = ConP pos <$> lookupVarName pos x <*> traverse rnPat xs
+rnPat (UnboxedP pos x) = pure $ UnboxedP pos x
 
 -- トップレベル識別子を列挙
 toplevelIdents :: [Decl (Griff 'Parse)] -> ([Name], [Name])
@@ -151,7 +151,7 @@ toplevelIdents ds = (ordNub $ concatMap f ds, ordNub $ concatMap g ds)
     g _ = []
 
 -- infix宣言をMapに変換
-infixDecls :: Monad m => [Decl (Griff 'Parse)] -> RnT m (Map RnId (Assoc, Int))
+infixDecls :: MonadReader RnEnv m => [Decl (Griff 'Parse)] -> m (Map RnId (Assoc, Int))
 infixDecls ds = mconcat <$> traverse f ds
   where
     f (Infix pos assoc order name) = do
@@ -162,7 +162,17 @@ infixDecls ds = mconcat <$> traverse f ds
 mkOpApp :: SourcePos -> (Assoc, Int) -> RnId -> Exp (Griff 'Rename) -> Exp (Griff 'Rename) -> Exp (Griff 'Rename)
 -- (e11 op1 e12) op2 e2
 mkOpApp pos2 fix2 op2 (OpApp (pos1, fix1) op1 e11 e12) e2
-  | nofix_error = errorOn pos1 $ pPrint op1 <+> pPrint op2 <+> "are not associative. (need '( )')"
+  | nofix_error =
+    errorOn pos1 $
+      "Precedence parsing error:"
+        P.$+$ P.nest
+          2
+          ( "cannot mix" <+> P.quotes (pPrint op1) <+> P.brackets (pPrint fix1)
+              <+> "and"
+              <+> P.quotes (pPrint op2)
+              <+> P.brackets (pPrint fix2)
+              <+> "in the same infix expression"
+          )
   | associate_right = OpApp (pos1, fix1) op1 e11 (OpApp (pos2, fix2) op2 e12 e2)
   where
     (nofix_error, associate_right) = compareFixity fix1 fix2

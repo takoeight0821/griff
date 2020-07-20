@@ -46,19 +46,22 @@ reservedOp :: Parser ()
 reservedOp = void $ choice $ map (try . pOperator) ["=", "::", "|", "->", ";", ",", "!"]
 
 lowerIdent :: Parser Name
-lowerIdent = label "lower identifier" $ lexeme $ do
-  notFollowedBy reserved
-  Name . T.pack <$> ((:) <$> (lowerChar <|> char '_') <*> many identLetter)
+lowerIdent = label "lower identifier" $
+  lexeme $ do
+    notFollowedBy reserved
+    Name . T.pack <$> ((:) <$> (lowerChar <|> char '_') <*> many identLetter)
 
 upperIdent :: Parser Name
-upperIdent = label "upper identifier" $ lexeme $ do
-  notFollowedBy reserved
-  Name . T.pack <$> ((:) <$> upperChar <*> many identLetter)
+upperIdent = label "upper identifier" $
+  lexeme $ do
+    notFollowedBy reserved
+    Name . T.pack <$> ((:) <$> upperChar <*> many identLetter)
 
 operator :: Parser Name
-operator = label "operator" $ lexeme $ do
-  notFollowedBy reservedOp
-  Name . T.pack <$> some opLetter
+operator = label "operator" $
+  lexeme $ do
+    notFollowedBy reservedOp
+    Name . T.pack <$> some opLetter
 
 -- parser
 
@@ -71,6 +74,8 @@ pUnboxed =
       <|> Int64 <$> try (lexeme $ L.decimal <* string' "L#")
       <|> Char <$> lexeme (between (char '\'') (char '\'') L.charLiteral <* char '#')
       <|> String <$> lexeme (char '"' *> manyTill L.charLiteral (char '"') <* char '#')
+      <|> Bool <$> try (lexeme (symbol "False#" >> notFollowedBy identLetter >> pure False))
+      <|> Bool <$> try (lexeme (symbol "True#" >> notFollowedBy identLetter >> pure True))
 
 pVariable :: Parser (Exp (Griff 'Parse))
 pVariable =
@@ -84,18 +89,20 @@ pConstructor =
 
 pFun :: Parser (Exp (Griff 'Parse))
 pFun =
-  label "function literal" $ between (symbol "{") (symbol "}") $
-    Fn <$> getSourcePos
-      <*> ( Clause <$> getSourcePos
-              <*> (try (some pPat <* pOperator "->") <|> pure [])
-              <*> pExp
-          )
-        `sepBy` pOperator "|"
+  label "function literal" $
+    between (symbol "{") (symbol "}") $
+      Fn <$> getSourcePos
+        <*> ( Clause <$> getSourcePos
+                <*> (try (some pPat <* pOperator "->") <|> pure [])
+                <*> pExp
+            )
+          `sepBy` pOperator "|"
 
 pSinglePat :: Parser (Pat (Griff 'Parse))
 pSinglePat =
   VarP <$> getSourcePos <*> lowerIdent
     <|> ConP <$> getSourcePos <*> upperIdent <*> pure []
+    <|> UnboxedP <$> getSourcePos <*> pUnboxed
     <|> between (symbol "(") (symbol ")") pPat
 
 pPat :: Parser (Pat (Griff 'Parse))
@@ -105,14 +112,14 @@ pPat =
       <|> pSinglePat
 
 pTuple :: Parser (Exp (Griff 'Parse))
-pTuple = label "tuple"
-  $ between (symbol "(") (symbol ")")
-  $ do
-    s <- getSourcePos
-    x <- pExp
-    pOperator ","
-    xs <- pExp `sepBy` pOperator ","
-    pure $ Tuple s (x : xs)
+pTuple = label "tuple" $
+  between (symbol "(") (symbol ")") $
+    do
+      s <- getSourcePos
+      x <- pExp
+      pOperator ","
+      xs <- pExp `sepBy` pOperator ","
+      pure $ Tuple s (x : xs)
 
 pSingleExp' :: Parser (Exp (Griff 'Parse))
 pSingleExp' =
@@ -150,9 +157,7 @@ pOpApp = makeExprParser pTerm opTable
       ]
 
 pExp :: Parser (Exp (Griff 'Parse))
-pExp =
-  try pOpApp
-    <|> pTerm
+pExp = pOpApp
 
 pTyVar :: Parser (Type (Griff 'Parse))
 pTyVar = label "type variable" $ TyVar <$> getSourcePos <*> lowerIdent
@@ -168,7 +173,7 @@ pTyTuple = between (symbol "(") (symbol ")") $ do
   x <- pType
   pOperator ","
   xs <- pType `sepBy` pOperator ","
-  pure $ TyTuple s (x:xs)
+  pure $ TyTuple s (x : xs)
 
 pTyLazy :: Parser (Type (Griff 'Parse))
 pTyLazy = between (symbol "{") (symbol "}") $ do
@@ -200,7 +205,7 @@ pType = try pTyArr <|> pTyTerm
 pScDef :: Parser (Decl (Griff 'Parse))
 pScDef =
   label "toplevel function definition" $
-    ScDef <$> getSourcePos <*> (lowerIdent <|> between (symbol "(") (symbol ")") operator)<*> many lowerIdent <* pOperator "=" <*> pExp
+    ScDef <$> getSourcePos <*> (lowerIdent <|> between (symbol "(") (symbol ")") operator) <*> many lowerIdent <* pOperator "=" <*> pExp
 
 pScSig :: Parser (Decl (Griff 'Parse))
 pScSig =
