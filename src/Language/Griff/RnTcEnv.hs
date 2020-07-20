@@ -1,6 +1,6 @@
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
@@ -39,7 +39,10 @@ genRnState = pure $ RnState mempty
 
 genRnEnv :: MonadUniq m => m RnEnv
 genRnEnv = do
-  -- generate primitive type RnId
+  -- generate RnId of primitive functions and operetors
+  add_i32 <- newId NoMeta "add_i32#"
+  add_i64 <- newId NoMeta "add_i64#"
+  -- generate RnId of primitive types
   bool_t <- newId NoMeta "Bool#"
   int32_t <- newId NoMeta "Int32#"
   int64_t <- newId NoMeta "Int64#"
@@ -49,7 +52,11 @@ genRnEnv = do
   string_t <- newId NoMeta "String#"
   pure $
     RnEnv
-      { _varEnv = mempty,
+      { _varEnv =
+          Map.fromList
+            [ ("add_i32#", add_i32),
+              ("add_i64#", add_i64)
+            ],
         _typeEnv =
           Map.fromList
             [ ("Bool#", bool_t),
