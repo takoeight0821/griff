@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: bc1361ff1e32b499ffe458859b1e6d55248f3275399ecf2d1ff0c01f296bd8b3
+-- hash: 73b7fe0204b11cf70b2717d79773ddaadd1499405459c861484f1d0b5ff773f2
 
 name:           griff
 version:        0.1.0.0
@@ -35,7 +35,9 @@ library
       Language.Griff.Rename
       Language.Griff.RnEnv
       Language.Griff.Syntax
+      Language.Griff.TcEnv
       Language.Griff.TypeRep
+      Language.Griff.Typing
   other-modules:
       Paths_griff
   hs-source-dirs:

@@ -51,7 +51,6 @@ data Type
   | TyArr Type Type
   | TupleT [Type]
   | LazyT Type
-  | MetaTv TyMeta
   deriving stock (Eq, Show, Ord)
 
 instance HasKind Type where
@@ -64,7 +63,6 @@ instance HasKind Type where
   kind (TyArr _ _) = Star
   kind (TupleT _) = Star
   kind (LazyT _) = Star
-  kind (MetaTv tv) = kind tv
 
 instance Pretty Type where
   pPrintPrec l d (TyApp t1 t2) = P.maybeParens (d > 10) $ P.sep [pPrintPrec l 10 t1, pPrintPrec l 11 t2]
@@ -74,7 +72,6 @@ instance Pretty Type where
   pPrintPrec l d (TyArr t1 t2) = P.maybeParens (d > 10) $ pPrintPrec l 11 t1 <+> "->" <+> pPrintPrec l 10 t2
   pPrintPrec _ _ (TupleT ts) = P.parens $ P.sep $ P.punctuate "," $ map pPrint ts
   pPrintPrec _ _ (LazyT t) = P.braces $ pPrint t
-  pPrintPrec _ _ (MetaTv m) = pPrint m
 
 -------------------
 -- Type variable --
@@ -96,29 +93,6 @@ instance Pretty PrimT where
   pPrint DoubleT = "Double#"
   pPrint CharT = "Char#"
   pPrint StringT = "String#"
-
--------------------
--- Meta variable --
--------------------
-
-data TyMeta = TyMeta (Id Kind) TyRef
-
-type TyRef = IORef (Maybe Type)
-
-instance HasKind TyMeta where
-  kind (TyMeta x _) = kind x
-
-instance Eq TyMeta where
-  (TyMeta u1 _) == (TyMeta u2 _) = u1 == u2
-
-instance Ord TyMeta where
-  compare (TyMeta u1 _) (TyMeta u2 _) = compare u1 u2
-
-instance Show TyMeta where
-  show (TyMeta u _) = "TyMeta " <> show u
-
-instance Pretty TyMeta where
-  pPrint (TyMeta u _) = pPrint u
 
 ------------------
 -- Substitution --
