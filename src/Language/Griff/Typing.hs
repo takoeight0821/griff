@@ -138,7 +138,7 @@ newTyVar k n = TyVar <$> newId k n
 -- Lookup and Extend type envirionment --
 -----------------------------------------
 
-lookupVar :: MonadReader TcEnv m => SourcePos -> Id NoMeta -> m (Id Scheme)
+lookupVar :: MonadReader TcEnv m => SourcePos -> Id NoMeta -> m Scheme
 lookupVar pos x = do
   env <- view varEnv
   case env ^. at x of
@@ -150,12 +150,10 @@ letVar var ty cs m = do
   env <- view varEnv
   case solve cs of
     Right subst -> do
-      defineVar var (generalize (apply subst env) (apply subst ty)) $ 
+      defineVar var (generalize (apply subst env) (apply subst ty)) $
         local (over varEnv (apply subst)) m
     Left (pos, doc) -> errorOn pos doc
 
 defineVar :: (MonadUniq m, MonadReader TcEnv m) => Id NoMeta -> Scheme -> m a -> m a
 defineVar var sc m = do
-  var' <- newId sc (var ^. idName)
-  local (over varEnv (Map.insert var var')) m
-
+  local (over varEnv (Map.insert var sc)) m

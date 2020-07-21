@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE EmptyDataDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -94,18 +96,24 @@ instance Pretty PrimT where
   pPrint CharT = "Char#"
   pPrint StringT = "String#"
 
-------------------
--- Substitution --
-------------------
+-------------------
+-- HasType class --
+-------------------
 
--- Replace the specified quantified type variables by given meta type variables
-substTy :: [TyVar] -> [Type] -> Type -> Type
-substTy tvs tys ty = subst_ty (zip tvs tys) ty
+class HasType a where
+  typeOf :: Lens' a Type
 
-subst_ty :: [(TyVar, Type)] -> Type -> Type
-subst_ty env (TyApp t1 t2) = TyApp (subst_ty env t1) (subst_ty env t2)
-subst_ty env (TyVar n) = fromMaybe (TyVar n) (lookup n env)
-subst_ty env (TyArr t1 t2) = TyArr (subst_ty env t1) (subst_ty env t2)
-subst_ty env (TupleT ts) = TupleT $ map (subst_ty env) ts
-subst_ty env (LazyT t) = LazyT $ subst_ty env t
-subst_ty _ t = t
+instance HasType Type where
+  typeOf = id
+
+instance HasType Scheme where
+  typeOf f (Forall vs t) = Forall vs <$> typeOf f t
+
+instance HasType a => HasType (Id a) where
+  typeOf f = idMeta (typeOf f)
+
+data WithType a = WithType a Type
+  deriving stock (Eq, Show, Ord, Functor, Foldable)
+
+instance HasType (WithType a) where
+  typeOf f (WithType a t) = WithType a <$> typeOf f t
