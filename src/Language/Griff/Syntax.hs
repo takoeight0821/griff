@@ -97,7 +97,7 @@ instance (ForallExpX HasType x, ForallClauseX HasType x, ForallPatX HasType x) =
       setter (Apply x e1 e2) t = Apply (set typeOf t x) (set typeOf t e1) (set typeOf t e2)
       setter (OpApp x op e1 e2) t = OpApp (set typeOf t x) op (set typeOf t e1) (set typeOf t e2)
       setter (Fn x cs) t = Fn (set typeOf t x) (map (set typeOf t) cs)
-      setter (Tuple x es) (T.TupleT ts) = Tuple (set typeOf (T.TupleT ts) x) (zipWith (set typeOf) ts es)
+      setter (Tuple x es) (T.TyTuple ts) = Tuple (set typeOf (T.TyTuple ts) x) (zipWith (set typeOf) ts es)
       setter Tuple {} t = errorDoc $ "Panic!" <+> pPrint t <+> "is not a tuple"
       setter (Force x e) t = Force (set typeOf t x) (set typeOf t e)
 

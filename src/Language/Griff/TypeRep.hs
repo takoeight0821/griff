@@ -49,10 +49,11 @@ data Type
   = TyApp Type Type
   | TyVar TyVar
   | TyCon (Id Kind)
-  | PrimT PrimT
+  | TyPrim PrimT
   | TyArr Type Type
-  | TupleT [Type]
-  | LazyT Type
+  | TyTuple [Type]
+  | TyLazy Type
+  | TyMeta MetaTv
   deriving stock (Eq, Show, Ord)
 
 instance HasKind Type where
@@ -61,25 +62,44 @@ instance HasKind Type where
     _ -> error "invalid kind"
   kind (TyVar t) = kind t
   kind (TyCon c) = kind c
-  kind (PrimT _) = Star
+  kind (TyPrim _) = Star
   kind (TyArr _ _) = Star
-  kind (TupleT _) = Star
-  kind (LazyT _) = Star
+  kind (TyTuple _) = Star
+  kind (TyLazy _) = Star
+  kind (TyMeta tv) = kind tv
 
 instance Pretty Type where
   pPrintPrec l d (TyApp t1 t2) = P.maybeParens (d > 10) $ P.sep [pPrintPrec l 10 t1, pPrintPrec l 11 t2]
   pPrintPrec _ _ (TyVar v) = pPrint v
   pPrintPrec _ _ (TyCon c) = pPrint c
-  pPrintPrec _ _ (PrimT p) = pPrint p
+  pPrintPrec _ _ (TyPrim p) = pPrint p
   pPrintPrec l d (TyArr t1 t2) = P.maybeParens (d > 10) $ pPrintPrec l 11 t1 <+> "->" <+> pPrintPrec l 10 t2
-  pPrintPrec _ _ (TupleT ts) = P.parens $ P.sep $ P.punctuate "," $ map pPrint ts
-  pPrintPrec _ _ (LazyT t) = P.braces $ pPrint t
+  pPrintPrec _ _ (TyTuple ts) = P.parens $ P.sep $ P.punctuate "," $ map pPrint ts
+  pPrintPrec _ _ (TyLazy t) = P.braces $ pPrint t
+  pPrintPrec _ _ (TyMeta tv) = pPrint tv
 
 -------------------
 -- Type variable --
 -------------------
 
 type TyVar = Id Kind
+
+data MetaTv = MetaTv Int Kind (IORef (Maybe Type))
+
+instance Eq MetaTv where
+  (MetaTv u1 _ _) == (MetaTv u2 _ _) = u1 == u2
+
+instance Ord MetaTv where
+  (MetaTv u1 _ _) `compare` (MetaTv u2 _ _) = u1 `compare` u2
+
+instance Show MetaTv where
+  show (MetaTv u _ _) = "_" <> show u
+
+instance Pretty MetaTv where
+  pPrint (MetaTv u _ _) = "_" <> pPrint u
+
+instance HasKind MetaTv where
+  kind (MetaTv _ k _) = k
 
 ---------------------
 -- Primitive Types --

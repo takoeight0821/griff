@@ -35,7 +35,7 @@ genTcEnv rnEnv = do
     TcEnv
       { _varEnv =
           Map.fromList
-            [ (add_i32, Forall [] (TupleT [PrimT Int32T, PrimT Int32T] `TyArr` PrimT Int32T)),
-              (add_i64, Forall [] (TupleT [PrimT Int64T, PrimT Int64T] `TyArr` PrimT Int64T))
+            [ (add_i32, Forall [] (TyTuple [TyPrim Int32T, TyPrim Int32T] `TyArr` TyPrim Int32T)),
+              (add_i64, Forall [] (TyTuple [TyPrim Int64T, TyPrim Int64T] `TyArr` TyPrim Int64T))
             ]
       }
